@@ -38,8 +38,14 @@ json_array() { if [ $# -eq 0 ]; then echo '[]'; else printf '%s\n' "$@" | jq -R 
 # Keys end up in URLs and in paths that get rm -rf, so only accept real Jira keys.
 valid_key() { printf '%s' "$1" | grep -qE '^[A-Z][A-Z0-9]*-[0-9]+$'; }
 
-slugify() {
-  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed -e 's/[^a-z0-9]\{1,\}/-/g' -e 's/^-//' -e 's/-$//' | cut -c1-40 | sed 's/-$//'
+# Branch folder for a Jira issue type. Anything that isn't a bug or story
+# (task, sub-task, epic, ...) is treated as a task.
+branch_prefix() {
+  case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+    bug) echo bugs ;;
+    story) echo feature ;;
+    *) echo task ;;
+  esac
 }
 
 # Platform a single label stands for (empty if it isn't a platform label).

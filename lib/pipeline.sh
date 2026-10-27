@@ -125,6 +125,7 @@ process_ticket() {
   issue="$(jira_issue "$KEY")" || { log "$KEY: couldn't read the ticket"; return 1; }
   summary="$(printf '%s' "$issue" | jq -r .fields.summary)"
   labels="$(printf '%s' "$issue" | jq -r '.fields.labels[]')"
+  issuetype="$(printf '%s' "$issue" | jq -r '.fields.issuetype.name // ""')"
   TARGETS="$(targets_for_labels "$labels")"
   PROFILE="$(profile_for_targets "$TARGETS")" ||
     { fail_ticket "$KEY" "its platform labels must all belong to one repo: ios and/or watchos (ListApp), android and/or wearos (ListApp_Android), or backend. Split it into one ticket per repo."; return 1; }
@@ -148,7 +149,7 @@ process_ticket() {
     return 1
   fi
 
-  BRANCH="claude/$KEY-$(slugify "$summary")"
+  BRANCH="$(branch_prefix "$issuetype")/$KEY"
   existing="$(gh pr list --repo "$GH_REPO" --head "$BRANCH" --state open --json url -q '.[0].url' 2>/dev/null || true)"
   if [ -n "$existing" ]; then
     log "$KEY: already has an open PR ($existing); moving it to $REVIEW_STATUS"

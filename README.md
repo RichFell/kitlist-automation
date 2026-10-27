@@ -21,7 +21,7 @@ It runs on your Mac with your Claude plan, GitHub sign-in and Jira token, so the
    | `backend` | RichFell/ListApp_Backend | none (local Supabase) |
 
    The `area-` versions of these labels work too. A ticket can combine labels from the same repo, such as `ios` + `watchos`. Labels from different repos get the ticket sent back.
-3. **Fresh worktree.** The runner keeps its own clones under `~/.listapp-automation/repos`, so your working copies are never touched. Each ticket gets a fresh worktree on `claude/<KEY>-<summary>`, made from `develop`. PRs target `develop`, and you merge releases into the default branch yourself.
+3. **Fresh worktree.** The runner keeps its own clones under `~/.listapp-automation/repos`, so your working copies are never touched. Each ticket gets a fresh worktree named for the ticket type (`bugs/<KEY>` for a Bug, `feature/<KEY>` for a Story, `task/<KEY>` for a Task or anything else), made from `develop`. PRs target `develop`, and you merge releases into the default branch yourself.
 4. **Implement.** Claude Code reads the ticket and the repo's `CLAUDE.md`. It implements the ticket, builds, tests, takes screenshots and commits. It isn't allowed to push, change branches, call GitHub or Jira, or touch remote Supabase projects.
 5. **Self-review.** A second Claude Code session that hasn't seen the work reviews the diff against the acceptance criteria and CLAUDE.md. It fixes real problems and adds a Self-review section to the PR description.
 6. **Pull request.** The runner, not Claude, pushes the branch. It uploads screenshots to the repo's `pr-assets` branch and opens the PR. Then it moves the card to In Review and comments with the PR link.
