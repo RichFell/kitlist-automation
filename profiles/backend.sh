@@ -1,6 +1,6 @@
 # Backend (Supabase): github.com/RichFell/ListApp_Backend
 GH_REPO="RichFell/ListApp_Backend"
-BASE_BRANCH=""
+BASE_BRANCH="stage"       # PRs target stage
 # Local Supabase only. Anything that can reach the linked production or staging
 # project is denied, even when a ticket seems to ask for it.
 PROFILE_ALLOW=(
