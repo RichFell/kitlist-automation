@@ -31,8 +31,20 @@ gh auth status >/dev/null 2>&1 || { echo "Sign in to GitHub first: gh auth login
 if [ "${1:-}" = "--reset-token" ] ||
    ! security find-generic-password -a "$JIRA_EMAIL" -s "$JIRA_TOKEN_KEYCHAIN_SERVICE" >/dev/null 2>&1; then
   echo "Create a Jira API token at https://id.atlassian.com/manage-profile/security/api-tokens"
-  echo "and paste it when the Keychain asks for the password (it won't be shown)."
-  security add-generic-password -U -a "$JIRA_EMAIL" -s "$JIRA_TOKEN_KEYCHAIN_SERVICE" -w
+  # Read it ourselves: the Keychain's own password prompt cuts input off at 128
+  # characters, and Atlassian tokens are longer.
+  read -r -s -p "Paste the token (it won't be shown) and press Return: " tok; echo
+  [ ${#tok} -ge 100 ] || { echo "That's only ${#tok} characters; Atlassian tokens are about 190. Try again."; exit 1; }
+  security add-generic-password -U -a "$JIRA_EMAIL" -s "$JIRA_TOKEN_KEYCHAIN_SERVICE" -w "$tok"
+  unset tok
+  if printf 'user = "%s:%s"\n' "$JIRA_EMAIL" \
+       "$(security find-generic-password -a "$JIRA_EMAIL" -s "$JIRA_TOKEN_KEYCHAIN_SERVICE" -w)" |
+     curl -sf -K - "$JIRA_SITE/rest/api/3/myself" >/dev/null; then
+    echo "Jira accepted the token."
+  else
+    echo "Jira rejected the token. Check JIRA_EMAIL in config.sh, then run ./install.sh --reset-token."
+    exit 1
+  fi
 fi
 
 # launchd can't read ~/Documents, so the runner executes from a copy in $APP_DIR.
