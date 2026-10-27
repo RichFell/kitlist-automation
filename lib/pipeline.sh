@@ -1,0 +1,210 @@
+# One ticket, start to finish. Runs in a subshell so profile settings don't leak.
+
+COMMON_ALLOW=(
+  Read Write Edit Glob Grep
+  "Bash(git status*)" "Bash(git diff*)" "Bash(git log*)" "Bash(git show*)"
+  "Bash(git add *)" "Bash(git commit *)" "Bash(git restore *)" "Bash(git rm *)" "Bash(git mv *)"
+  "Bash(ls)" "Bash(ls *)" "Bash(cat *)" "Bash(head *)" "Bash(tail *)" "Bash(wc *)" "Bash(grep *)"
+  "Bash(mkdir *)" "Bash(cp *)" "Bash(mv *)" "Bash(jq *)" "Bash(sips *)" "Bash(sleep *)"
+  "mcp__figma" "mcp__Figma"
+)
+COMMON_DENY=(
+  "Bash(git push*)" "Bash(git checkout*)" "Bash(git switch*)" "Bash(git reset --hard*)"
+  "Bash(git rebase*)" "Bash(git branch -D*)" "Bash(git worktree*)" "Bash(git remote*)"
+  "Bash(gh *)" "Bash(curl *)" "Bash(wget *)" "Bash(rm -rf*)" "Bash(sudo *)" "Bash(security *)"
+)
+
+fail_ticket() {
+  local key="$1" reason="$2"
+  log "$key: blocked: $reason"
+  jira_transition "$key" "$FALLBACK_STATUS" || true
+  jira_add_label "$key" "$BLOCKED_LABEL" || true
+  jira_comment "$key" "Claude couldn't finish this ticket: $reason
+
+Logs on the Mac: ${RUN_DIR:-$LOG_FILE}
+
+To retry, fix the ticket or the cause, remove the $BLOCKED_LABEL label, and move the card back to $PICKUP_STATUS." || true
+  return 1
+}
+
+ensure_repo() {
+  REPO="$STATE_DIR/repos/${GH_REPO#*/}"
+  if [ ! -d "$REPO/.git" ]; then
+    gh repo clone "$GH_REPO" "$REPO" -- --quiet >>"$LOG_FILE" 2>&1 || return 1
+  fi
+  git -C "$REPO" fetch origin --prune --quiet || return 1
+  if [ -z "$BASE_BRANCH" ]; then
+    BASE_BRANCH="$(gh repo view "$GH_REPO" --json defaultBranchRef -q .defaultBranchRef.name)" || return 1
+  fi
+  git -C "$REPO" rev-parse --verify --quiet "origin/$BASE_BRANCH" >/dev/null ||
+    { log "$KEY: $GH_REPO has no $BASE_BRANCH branch on GitHub"; BASE_MISSING=1; return 1; }
+}
+
+# The settings file lives outside every directory Claude can write to, and is
+# rewritten before each phase, so one phase can't widen the next one's permissions.
+# "//" makes a rule path absolute. .claude/ is denied too: the review phase would
+# otherwise load project settings or hooks the implement phase wrote.
+write_settings() {
+  local allow deny protect=() p
+  for p in "$SETTINGS_FILE" "$WT/.claude/**" "$RUN_DIR/.claude/**"; do
+    protect+=("Edit(/$p)" "Write(/$p)")
+  done
+  allow="$(json_array "${COMMON_ALLOW[@]}" ${PROFILE_ALLOW[@]+"${PROFILE_ALLOW[@]}"})"
+  deny="$(json_array "${COMMON_DENY[@]}" ${PROFILE_DENY[@]+"${PROFILE_DENY[@]}"} "${protect[@]}")"
+  mkdir -p "$(dirname "$SETTINGS_FILE")"
+  jq -n --argjson a "$allow" --argjson d "$deny" '{permissions: {allow: $a, deny: $d}}' > "$SETTINGS_FILE"
+}
+
+# run_claude PHASE PROMPT_FILE MAX_TURNS
+run_claude() {
+  local phase="$1" prompt rc turns
+  # PROFILE goes first so placeholders inside the profile text are filled in too.
+  prompt="$(render_template "$2" PROFILE "$(cat "$HERE/profiles/$PROFILE.md")" KEY "$KEY" \
+            RUN_DIR "$RUN_DIR" BASE_BRANCH "$BASE_BRANCH" BRANCH "$BRANCH" TARGETS "$TARGETS")"
+  write_settings
+  local args=(-p "$prompt" --settings "$SETTINGS_FILE" --permission-mode acceptEdits
+              --add-dir "$RUN_DIR" --output-format json --max-turns "$3")
+  [ -n "$CLAUDE_MODEL" ] && args+=(--model "$CLAUDE_MODEL")
+  log "$KEY: $phase started"
+  ( cd "$WT" && caffeinate -i claude "${args[@]}" ) >"$RUN_DIR/$phase.json" 2>"$RUN_DIR/$phase.err"
+  rc=$?
+  if [ $rc -ne 0 ] || [ "$(jq -r '.is_error // false' "$RUN_DIR/$phase.json" 2>/dev/null)" != "false" ]; then
+    log "$KEY: $phase failed (exit $rc, $(jq -r '.subtype // "no result"' "$RUN_DIR/$phase.json" 2>/dev/null))"
+    return 1
+  fi
+  turns="$(jq -r '.num_turns // "?"' "$RUN_DIR/$phase.json")"
+  log "$KEY: $phase finished in $turns turns"
+}
+
+# Fails the ticket unless Claude wrote status.json with status "done".
+require_done() {
+  local status reason
+  status="$(jq -r '.status // "missing"' "$RUN_DIR/status.json" 2>/dev/null || echo missing)"
+  reason="$(jq -r '.reason // ""' "$RUN_DIR/status.json" 2>/dev/null || true)"
+  case "$status" in
+    done) rm -f "$RUN_DIR/status.json"; return 0 ;;
+    blocked) fail_ticket "$KEY" "${reason:-Claude stopped without giving a reason.} (during $1)" ;;
+    *) fail_ticket "$KEY" "the $1 step ended without reporting a result." ;;
+  esac
+}
+
+# Pushes screenshots to the repo's pr-assets branch and appends them to the PR body.
+publish_screenshots() {
+  local shots=() f n aw
+  for f in "$RUN_DIR"/screenshots/*.png "$RUN_DIR"/screenshots/*.jpg; do
+    [ -f "$f" ] || continue
+    n="$(basename "$f" | tr ' ' '-')"; [ "$n" = "$(basename "$f")" ] || mv "$f" "$RUN_DIR/screenshots/$n"
+    shots+=("$RUN_DIR/screenshots/$n")
+  done
+  [ ${#shots[@]} -gt 0 ] || return 0
+  aw="$STATE_DIR/worktrees/${GH_REPO#*/}/assets-$KEY"
+  rm -rf "$aw"; git -C "$REPO" worktree prune
+  if git -C "$REPO" ls-remote --exit-code --heads origin pr-assets >/dev/null 2>&1; then
+    git -C "$REPO" fetch --quiet origin pr-assets &&
+      git -C "$REPO" worktree add --quiet -B pr-assets "$aw" origin/pr-assets || return 1
+  else
+    git -C "$REPO" worktree add --quiet --detach "$aw" || return 1
+    ( cd "$aw" && git checkout --quiet --orphan pr-assets && git rm -rfq . &&
+      printf '# PR screenshots\n\nImages referenced from pull requests. Safe to prune.\n' > README.md ) || return 1
+  fi
+  mkdir -p "$aw/$KEY" && cp "${shots[@]}" "$aw/$KEY/"
+  ( cd "$aw" && git add -A && git commit --quiet -m "Screenshots for $KEY" && git push --quiet origin pr-assets ) || return 1
+  git -C "$REPO" worktree remove --force "$aw"
+  { printf '\n## Screenshots\n\n'
+    for f in "${shots[@]}"; do
+      n="$(basename "$f")"
+      printf '**%s**\n\n<img src="https://github.com/%s/blob/pr-assets/%s/%s?raw=true" width="300">\n\n' \
+        "${n%.*}" "$GH_REPO" "$KEY" "$n"
+    done; } >> "$BODY"
+}
+
+process_ticket() {
+  KEY="$1"
+  local issue labels summary existing ahead leftovers pr_url
+  valid_key "$KEY" || { log "Refusing \"$KEY\": not a Jira key."; return 1; }
+  issue="$(jira_issue "$KEY")" || { log "$KEY: couldn't read the ticket"; return 1; }
+  summary="$(printf '%s' "$issue" | jq -r .fields.summary)"
+  labels="$(printf '%s' "$issue" | jq -r '.fields.labels[]')"
+  TARGETS="$(targets_for_labels "$labels")"
+  PROFILE="$(profile_for_targets "$TARGETS")" ||
+    { fail_ticket "$KEY" "its platform labels must all belong to one repo: ios and/or watchos (ListApp), android and/or wearos (ListApp_Android), or backend. Split it into one ticket per repo."; return 1; }
+  source "$HERE/profiles/$PROFILE.sh"
+
+  RUN_ID="$KEY-$(date +%Y%m%d-%H%M%S)"
+  RUN_DIR="$STATE_DIR/runs/$RUN_ID"
+  SETTINGS_FILE="$STATE_DIR/settings/$RUN_ID.json"
+  mkdir -p "$RUN_DIR/screenshots"
+  printf '%s' "$issue" > "$RUN_DIR/ticket.json"
+  printf '%s' "$issue" | jira_ticket_markdown > "$RUN_DIR/ticket.md"
+  log "$KEY: starting ($TARGETS) $summary"
+
+  BASE_MISSING=0
+  if ! ensure_repo; then
+    if [ "$BASE_MISSING" = 1 ]; then
+      fail_ticket "$KEY" "$GH_REPO has no $BASE_BRANCH branch on GitHub to base the PR on. Push one, then retry."
+    else
+      fail_ticket "$KEY" "couldn't clone or fetch $GH_REPO. If the GitHub repo doesn't exist yet, create it (see the README)."
+    fi
+    return 1
+  fi
+
+  BRANCH="claude/$KEY-$(slugify "$summary")"
+  existing="$(gh pr list --repo "$GH_REPO" --head "$BRANCH" --state open --json url -q '.[0].url' 2>/dev/null || true)"
+  if [ -n "$existing" ]; then
+    log "$KEY: already has an open PR ($existing); moving it to $REVIEW_STATUS"
+    jira_transition "$KEY" "$REVIEW_STATUS" || true
+    return 0
+  fi
+  # A branch with no open PR may still hold someone's work (closed PR, manual
+  # commits). Never reset or overwrite it; let a human decide.
+  if git -C "$REPO" ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+    fail_ticket "$KEY" "branch $BRANCH already exists on GitHub without an open PR. Delete it or open a PR from it, then retry."
+    return 1
+  fi
+
+  jira_transition "$KEY" "$WORKING_STATUS" || true
+  WT="$STATE_DIR/worktrees/${GH_REPO#*/}/$KEY"
+  if [ -d "$WT" ]; then git -C "$REPO" worktree remove --force "$WT" 2>/dev/null || rm -rf "$WT"; fi
+  git -C "$REPO" worktree prune
+  git -C "$REPO" worktree add --quiet -B "$BRANCH" "$WT" "origin/$BASE_BRANCH" ||
+    { fail_ticket "$KEY" "couldn't create a worktree from origin/$BASE_BRANCH."; return 1; }
+  prepare_worktree
+
+  trap device_down EXIT
+  device_up || { fail_ticket "$KEY" "a simulator or emulator for $TARGETS didn't start (see the runner log)."; return 1; }
+
+  run_claude implement "$HERE/prompts/implement.md" "$MAX_TURNS_IMPLEMENT" ||
+    { fail_ticket "$KEY" "the implementation step errored or ran out of turns."; return 1; }
+  require_done implementation || return 1
+  ahead="$(git -C "$WT" rev-list --count "origin/$BASE_BRANCH..HEAD")"
+  [ "$ahead" -gt 0 ] || { fail_ticket "$KEY" "Claude finished without committing any changes."; return 1; }
+
+  run_claude review "$HERE/prompts/review.md" "$MAX_TURNS_REVIEW" ||
+    { fail_ticket "$KEY" "the self-review step errored or ran out of turns."; return 1; }
+  require_done self-review || return 1
+  device_down; trap - EXIT
+
+  [ -s "$RUN_DIR/pr-body.md" ] || printf '## Summary\n\n%s\n' "$summary" > "$RUN_DIR/pr-body.md"
+  BODY="$RUN_DIR/final-body.md"
+  cp "$RUN_DIR/pr-body.md" "$BODY"
+  leftovers="$(git -C "$WT" status --porcelain)"
+  if [ -n "$leftovers" ]; then
+    printf '\n> **Note:** these uncommitted files were left out of the PR:\n> ```\n%s\n> ```\n' \
+      "$(printf '%s\n' "$leftovers" | sed 's/^/> /')" >> "$BODY"
+  fi
+  publish_screenshots ||
+    printf '\n> Screenshots couldn'"'"'t be uploaded. They are on the Mac in %s/screenshots.\n' "$RUN_DIR" >> "$BODY"
+  printf '\n---\nJira: [%s](%s/browse/%s) · Implemented and self-reviewed by Claude Code\n' \
+    "$KEY" "$JIRA_SITE" "$KEY" >> "$BODY"
+
+  git -C "$WT" push --quiet -u origin "$BRANCH" >>"$LOG_FILE" 2>&1 ||
+    { fail_ticket "$KEY" "pushing $BRANCH to GitHub failed."; return 1; }
+  pr_url="$(gh pr create --repo "$GH_REPO" --base "$BASE_BRANCH" --head "$BRANCH" \
+              --title "[$KEY] $summary" --body-file "$BODY" 2>>"$LOG_FILE")" ||
+    { fail_ticket "$KEY" "the branch was pushed but opening the PR failed."; return 1; }
+
+  jira_transition "$KEY" "$REVIEW_STATUS" || true
+  jira_comment "$KEY" "Pull request ready for review: $pr_url" || true
+  git -C "$REPO" worktree remove --force "$WT" 2>/dev/null || true
+  log "$KEY: PR opened $pr_url"
+}
