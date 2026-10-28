@@ -56,10 +56,11 @@ label_target() {
     android|area-android) echo android ;;
     wearos|area-wearos) echo wearos ;;
     backend|area-backend) echo backend ;;
+    servicesfactory|area-servicesfactory) echo servicesfactory ;;
   esac
 }
 target_repo() {
-  case "$1" in ios|watchos) echo ios ;; android|wearos) echo android ;; backend) echo backend ;; esac
+  case "$1" in ios|watchos) echo ios ;; android|wearos) echo android ;; backend) echo backend ;; servicesfactory) echo servicesfactory ;; esac
 }
 
 # Space-separated platform targets in a ticket's labels, e.g. "ios watchos".

@@ -19,6 +19,7 @@ It runs on your Mac with your Claude plan, GitHub sign-in and Jira token, so the
    | `android` | RichFell/ListApp_Android | phone emulator |
    | `wearos` | RichFell/ListApp_Android | Wear OS emulator |
    | `backend` | RichFell/ListApp_Backend | none (local Supabase) |
+   | `servicesfactory` | RichFell/ServicesFactory | none (builds and tests on the Mac) |
 
    The `area-` versions of these labels work too. A ticket can combine labels from the same repo, such as `ios` + `watchos`. Labels from different repos get the ticket sent back.
 3. **Fresh worktree.** The runner keeps its own clones under `~/.listapp-automation/repos`, so your working copies are never touched. Each ticket gets a fresh worktree named for the ticket type (`bugs/<KEY>` for a Bug, `feature/<KEY>` for a Story, `task/<KEY>` for a Task or anything else), made from `develop` (`stage` for the backend). PRs target that same branch, and you merge releases into the default branch yourself.
@@ -56,7 +57,7 @@ After editing anything in this folder, run `./install.sh` again. The hourly job 
 
 ## Writing tickets that work well
 
-- Give each ticket the platform labels it touches, all from one repo: `ios`/`watchos` or `android`/`wearos` or `backend`. Split features that span repos into one ticket per repo under a parent story.
+- Give each ticket the platform labels it touches, all from one repo: `ios`/`watchos` or `android`/`wearos` or `backend` or `servicesfactory`. Split features that span repos into one ticket per repo under a parent story.
 - The first watchOS ticket should be a human one: adding the watch target means editing the Xcode project file, which Claude isn't allowed to do. Once the target exists, Claude can build features in it.
 - Write testable acceptance criteria, and say which screens or states the screenshots should show.
 - Link the Figma frame. If Claude Code on this Mac has a Figma MCP server configured, it checks the design against the frame. Otherwise it says in the PR that it worked from the ticket text.
@@ -72,7 +73,7 @@ Change these in `config.sh` and the files in `profiles/`:
   - turn limits
   - model
 - **`profiles/*.sh`, per repo:**
-  - base branch (`develop` for both apps; `stage` for the backend)
+  - base branch (`develop` for both apps and ServicesFactory; `stage` for the backend)
   - simulator and emulator names
   - the extra commands Claude may run
 - **`profiles/*.md`:** how Claude builds, tests and captures screenshots in each repo.

@@ -20,7 +20,7 @@ There is no build, lint or test suite. To check changes:
 
 - `ticket-runner.sh`: the entry point. It sources `config.sh` and then `lib/{common,jira,devices,pipeline}.sh`. It takes a lock, searches Jira, skips tickets with unfinished "is blocked by" links, and calls `process_ticket` in a subshell for each ticket, up to `MAX_TICKETS_PER_RUN`.
 - `lib/pipeline.sh` `process_ticket`:
-  1. Platform labels go through `targets_for_labels` and then `profile_for_targets`, which returns `ios`, `android` or `backend`. All labels on a ticket must map to one repo.
+  1. Platform labels go through `targets_for_labels` and then `profile_for_targets`, which returns `ios`, `android`, `backend` or `servicesfactory`. All labels on a ticket must map to one repo.
   2. The runner sources `profiles/<profile>.sh`. Each profile sets `GH_REPO`, `BASE_BRANCH`, `PROFILE_ALLOW`/`PROFILE_DENY` and the hooks `device_up`, `device_down` and `prepare_worktree`.
   3. The branch is named `$(branch_prefix <issuetype>)/<KEY>`, so `bugs/`, `feature/` or `task/` followed by the key. An open PR on that branch means the ticket is already done; a remote branch with no PR fails the ticket so nobody's work gets overwritten.
   4. The implement phase runs, then the review phase. Every step after the implement phase is done by the runner itself: pushing the branch, uploading screenshots to the repo's orphan `pr-assets` branch, `gh pr create`, and the Jira updates.
