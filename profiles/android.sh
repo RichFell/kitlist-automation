@@ -3,6 +3,7 @@ GH_REPO="RichFell/kitlist-android"
 BASE_BRANCH="develop"     # PRs target develop; releases go to the default branch by hand
 PHONE_AVD=""              # empty = first AVD whose name doesn't contain "wear"
 USE_FIGMA=1               # keep the claude.ai Figma connector for design checks
+USE_SUBAGENTS=1           # let the implement phase survey this large repo with Explore subagents
 PROFILE_ALLOW=( "Bash(./gradlew *)" "Bash(adb *)" )
 PROFILE_DENY=( "Bash(adb emu kill*)" "Bash(adb * emu kill*)" "Bash(adb reboot*)" "Bash(adb * reboot*)" "Bash(./gradlew publish*)" )
 device_up() {

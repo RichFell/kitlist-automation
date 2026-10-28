@@ -21,6 +21,9 @@ CLAUDE_MODEL_IMPLEMENT=""      # empty = Claude Code's default model
 CLAUDE_MODEL_REVIEW="sonnet"   # the review reads an existing diff, so a cheaper model is enough
 CLAUDE_SUBAGENT_MODEL="sonnet" # Explore subagents survey code in their own context
 CLAUDE_EFFORT=""               # low|medium|high|xhigh|max; empty = Claude Code's default
+# Built-in tools each phase loads. Every tool's schema is re-read on every turn, so
+# keep this to what the phases use. Profiles with USE_SUBAGENTS=1 add Agent to implement.
+CLAUDE_TOOLS="Bash,Read,Write,Edit,Glob,Grep"
 
 # Where the runner keeps its own clones, worktrees, run logs and installed copy.
 STATE_DIR="$HOME/.kitlist-automation"

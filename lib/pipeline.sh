@@ -67,6 +67,10 @@ run_claude() {
               --add-dir "$RUN_DIR" --output-format json --max-turns "$3")
   [ -n "${4:-}" ] && args+=(--model "$4")
   [ -n "$CLAUDE_EFFORT" ] && args+=(--effort "$CLAUDE_EFFORT")
+  # Only the large app repos are worth surveying with Explore subagents.
+  local tools="$CLAUDE_TOOLS"
+  [ "$phase" = implement ] && [ "${USE_SUBAGENTS:-0}" = 1 ] && tools="$tools,Agent"
+  [ -n "$tools" ] && args+=(--tools "$tools")
   # The owner's skills and MCP servers add ~15k tokens to every turn. Drop the
   # skills always, and the MCP servers unless the profile needs the Figma connector.
   args+=(--disable-slash-commands)
