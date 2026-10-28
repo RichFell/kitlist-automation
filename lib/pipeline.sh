@@ -128,7 +128,7 @@ process_ticket() {
   issuetype="$(printf '%s' "$issue" | jq -r '.fields.issuetype.name // ""')"
   TARGETS="$(targets_for_labels "$labels")"
   PROFILE="$(profile_for_targets "$TARGETS")" ||
-    { fail_ticket "$KEY" "its platform labels must all belong to one repo: ios and/or watchos (ListApp), android and/or wearos (ListApp_Android), backend, or servicesfactory. Split it into one ticket per repo."; return 1; }
+    { fail_ticket "$KEY" "its platform labels must all belong to one repo: ios (kitlist-ios), android (kitlist-android), backend (kitlist-backend), or servicesfactory (kitlist-ios-services). Split it into one ticket per repo."; return 1; }
   source "$HERE/profiles/$PROFILE.sh"
 
   RUN_ID="$KEY-$(date +%Y%m%d-%H%M%S)"

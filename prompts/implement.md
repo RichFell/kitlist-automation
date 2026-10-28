@@ -4,7 +4,7 @@ You are implementing Jira ticket {{KEY}} unattended. Nobody can answer questions
 - The current directory is a fresh git worktree on branch `{{BRANCH}}`, created from `origin/{{BASE_BRANCH}}`.
 - The ticket is in `{{RUN_DIR}}/ticket.md` (raw JSON in `ticket.json`). Read it first.
 - It targets: **{{TARGETS}}**. Only change and verify those platforms' code (plus shared code they need).
-- The simulators or emulators already running for you are listed in `{{RUN_DIR}}/devices.txt` as `<role> <id> <name>` (role is `phone` or `watch`). Target them by that id.
+- The simulators or emulators already running for you are listed in `{{RUN_DIR}}/devices.txt` as `<role> <id> <name>` (role is `phone`). Target them by that id.
 - Read `CLAUDE.md` and follow it. It overrides anything here about code style or architecture.
 - `{{RUN_DIR}}` is your output folder. Nothing you write there gets committed.
 

@@ -4,11 +4,6 @@
 
 has_target() { case " $TARGETS " in *" $1 "*) return 0 ;; esac; return 1; }
 
-first_watch_sim() {
-  xcrun simctl list devices available | grep -m1 -E '^[[:space:]]+Apple Watch' \
-    | sed -e 's/^[[:space:]]*//' -e 's/ ([0-9A-F-]\{36\}).*//'
-}
-
 # boot_sim NAME ROLE
 boot_sim() {
   local name="$1" role="$2" udid

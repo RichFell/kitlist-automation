@@ -1,6 +1,6 @@
-# ServicesFactory Swift package: github.com/RichFell/ServicesFactory (label: servicesfactory)
-GH_REPO="RichFell/ServicesFactory"
-BASE_BRANCH="develop"     # PRs target develop; releases go to main by hand
+# ServicesFactory Swift package: github.com/RichFell/kitlist-ios-services (label: servicesfactory)
+GH_REPO="RichFell/kitlist-ios-services"
+BASE_BRANCH="main"        # branch from and open PRs against main
 # Builds and tests run on macOS, so no simulator is needed.
 PROFILE_ALLOW=(
   "Bash(swift build*)" "Bash(swift test*)" "Bash(swift package resolve*)"
