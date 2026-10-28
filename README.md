@@ -53,7 +53,7 @@ After editing anything in this folder, run `./install.sh` again. The hourly job 
 
 - Give each ticket the platform labels it touches, all from one repo: `ios`, `android`, `backend` or `servicesfactory`. Split features that span repos into one ticket per repo under a parent story.
 - Write testable acceptance criteria, and say which screens or states the screenshots should show.
-- Link the Figma frame. If Claude Code on this Mac has a Figma MCP server configured, it checks the design against the frame. Otherwise it says in the PR that it worked from the ticket text.
+- Link the Figma frame. For iOS and Android tickets, if the claude.ai Figma connector is connected, Claude checks the design against the frame. Otherwise it says in the PR that it worked from the ticket text.
 - Use Jira's "is blocked by" links for ordering. The runner won't start a ticket until its blockers are done.
 
 ## Settings
@@ -64,7 +64,7 @@ Change these in `config.sh` and the files in `profiles/`:
   - column names
   - tickets per run (default 1)
   - turn limits
-  - model
+  - model for each phase (review defaults to Sonnet) and effort
 - **`profiles/*.sh`, per repo:**
   - base branch (`develop` for both apps; `main` for kitlist-ios-services; `stage` for the backend)
   - simulator and emulator names

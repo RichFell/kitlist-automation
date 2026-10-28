@@ -8,6 +8,8 @@ The ticket targets **{{TARGETS}}**; running devices are listed in `{{RUN_DIR}}/d
 - Bugs: edge cases, error and empty states, concurrency, state handling, migrations or security rules (backend).
 - Scope creep, dead code, debug leftovers, TODOs, secrets or keys.
 
+Edit files with the Edit and Write tools. Editing through `python`, `sed -i`, `perl -pi` or shell redirects (`cat >`, `printf >`) is denied.
+
 Fix real problems yourself and commit them as `{{KEY}}: Review fixes: <what>`. Don't restyle code that is merely different from how you'd write it. After any fix, rerun the verification below and retake affected screenshots.
 
 ## Repo specifics

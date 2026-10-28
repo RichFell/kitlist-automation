@@ -4,4 +4,5 @@ Supabase backend. Follow the repo's `CLAUDE.md` for the schema workflow (declara
 - Never run anything that targets a hosted project (`kitlist-staging` or `kitlist-production`): no `--linked`, `--db-url`, `--project-ref`, `db push`, `link`, `functions deploy` or `secrets`. These are denied. Deploying is the human's job after merge.
 - Never edit a migration that already exists on `origin/{{BASE_BRANCH}}`.
 - Before finishing, `supabase db reset && supabase test db` must pass and `supabase db advisors --local` must report nothing new.
+- Migrations are generated from `supabase/schemas/`. In review, read the diff with `':!supabase/migrations'` and check migrations only by name (`git diff --stat`) and by `supabase db reset` passing.
 - No screenshots. In the PR body, include the test summary and, for schema changes, the list of tables, policies and functions added or changed.

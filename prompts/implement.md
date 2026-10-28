@@ -13,6 +13,7 @@ You are implementing Jira ticket {{KEY}} unattended. Nobody can answer questions
 - If the ticket would make you invent product behavior, contradicts CLAUDE.md, or depends on work that doesn't exist yet, don't guess. Write the blocked status described below, explain what's missing, and stop without changing code.
 - If the ticket links Figma and a Figma tool is available, use it to check layout, spacing, colors and copy. If no Figma tool is available, build from the ticket text and say so in the PR body.
 - Commit as you go with messages like `{{KEY}}: Add list sharing invite view`. Don't push, switch branches, or touch anything outside this worktree and `{{RUN_DIR}}`.
+- Edit files with the Edit and Write tools. Editing through `python`, `sed -i`, `perl -pi` or shell redirects (`cat >`, `printf >`) is denied.
 - A tool call that is denied is denied on purpose. Find another way or report blocked; don't try to get around it.
 
 ## Repo specifics

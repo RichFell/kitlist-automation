@@ -17,7 +17,9 @@ BLOCKED_LABEL="claude-blocked"
 MAX_TICKETS_PER_RUN=1
 MAX_TURNS_IMPLEMENT=200
 MAX_TURNS_REVIEW=80
-CLAUDE_MODEL=""   # empty = Claude Code's default model
+CLAUDE_MODEL_IMPLEMENT=""      # empty = Claude Code's default model
+CLAUDE_MODEL_REVIEW="sonnet"   # the review reads an existing diff, so a cheaper model is enough
+CLAUDE_EFFORT=""               # low|medium|high|xhigh|max; empty = Claude Code's default
 
 # Where the runner keeps its own clones, worktrees, run logs and installed copy.
 STATE_DIR="$HOME/.kitlist-automation"

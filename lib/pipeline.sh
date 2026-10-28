@@ -3,10 +3,11 @@
 COMMON_ALLOW=(
   Read Write Edit Glob Grep
   "Bash(git status*)" "Bash(git diff*)" "Bash(git log*)" "Bash(git show*)"
+  "Bash(git ls-files*)" "Bash(git ls-tree*)" "Bash(git grep*)" "Bash(which *)"
   "Bash(git add *)" "Bash(git commit *)" "Bash(git restore *)" "Bash(git rm *)" "Bash(git mv *)"
   "Bash(ls)" "Bash(ls *)" "Bash(cat *)" "Bash(head *)" "Bash(tail *)" "Bash(wc *)" "Bash(grep *)"
   "Bash(mkdir *)" "Bash(cp *)" "Bash(mv *)" "Bash(jq *)" "Bash(sips *)" "Bash(sleep *)"
-  "mcp__figma" "mcp__Figma"
+  "mcp__figma" "mcp__Figma" "mcp__claude_ai_Figma"
 )
 COMMON_DENY=(
   "Bash(git push*)" "Bash(git checkout*)" "Bash(git switch*)" "Bash(git reset --hard*)"
@@ -55,7 +56,7 @@ write_settings() {
   jq -n --argjson a "$allow" --argjson d "$deny" '{permissions: {allow: $a, deny: $d}}' > "$SETTINGS_FILE"
 }
 
-# run_claude PHASE PROMPT_FILE MAX_TURNS
+# run_claude PHASE PROMPT_FILE MAX_TURNS [MODEL]
 run_claude() {
   local phase="$1" prompt rc turns
   # PROFILE goes first so placeholders inside the profile text are filled in too.
@@ -64,7 +65,12 @@ run_claude() {
   write_settings
   local args=(-p "$prompt" --settings "$SETTINGS_FILE" --permission-mode acceptEdits
               --add-dir "$RUN_DIR" --output-format json --max-turns "$3")
-  [ -n "$CLAUDE_MODEL" ] && args+=(--model "$CLAUDE_MODEL")
+  [ -n "${4:-}" ] && args+=(--model "$4")
+  [ -n "$CLAUDE_EFFORT" ] && args+=(--effort "$CLAUDE_EFFORT")
+  # The owner's skills and MCP servers add ~15k tokens to every turn. Drop the
+  # skills always, and the MCP servers unless the profile needs the Figma connector.
+  args+=(--disable-slash-commands)
+  [ "${USE_FIGMA:-0}" = 1 ] || args+=(--strict-mcp-config)
   log "$KEY: $phase started"
   ( cd "$WT" && caffeinate -i claude "${args[@]}" ) >"$RUN_DIR/$phase.json" 2>"$RUN_DIR/$phase.err"
   rc=$?
@@ -136,7 +142,7 @@ process_ticket() {
   SETTINGS_FILE="$STATE_DIR/settings/$RUN_ID.json"
   mkdir -p "$RUN_DIR/screenshots"
   printf '%s' "$issue" > "$RUN_DIR/ticket.json"
-  printf '%s' "$issue" | jira_ticket_markdown > "$RUN_DIR/ticket.md"
+  { printf '%s' "$issue" | jira_ticket_markdown; jira_related_markdown "$issue"; } > "$RUN_DIR/ticket.md"
   log "$KEY: starting ($TARGETS) $summary"
 
   BASE_MISSING=0
@@ -174,13 +180,13 @@ process_ticket() {
   trap device_down EXIT
   device_up || { fail_ticket "$KEY" "a simulator or emulator for $TARGETS didn't start (see the runner log)."; return 1; }
 
-  run_claude implement "$HERE/prompts/implement.md" "$MAX_TURNS_IMPLEMENT" ||
+  run_claude implement "$HERE/prompts/implement.md" "$MAX_TURNS_IMPLEMENT" "$CLAUDE_MODEL_IMPLEMENT" ||
     { fail_ticket "$KEY" "the implementation step errored or ran out of turns."; return 1; }
   require_done implementation || return 1
   ahead="$(git -C "$WT" rev-list --count "origin/$BASE_BRANCH..HEAD")"
   [ "$ahead" -gt 0 ] || { fail_ticket "$KEY" "Claude finished without committing any changes."; return 1; }
 
-  run_claude review "$HERE/prompts/review.md" "$MAX_TURNS_REVIEW" ||
+  run_claude review "$HERE/prompts/review.md" "$MAX_TURNS_REVIEW" "$CLAUDE_MODEL_REVIEW" ||
     { fail_ticket "$KEY" "the self-review step errored or ran out of turns."; return 1; }
   require_done self-review || return 1
   device_down; trap - EXIT

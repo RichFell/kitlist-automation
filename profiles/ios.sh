@@ -2,6 +2,7 @@
 GH_REPO="RichFell/kitlist-ios"
 BASE_BRANCH="develop"     # PRs target develop; releases go to master by hand
 SIM_NAME="iPhone 18 Pro"  # keep in sync with .claude/hooks/stop-build-check.sh
+USE_FIGMA=1               # keep the claude.ai Figma connector for design checks
 PROFILE_ALLOW=(
   "Bash(xcodebuild *)" "Bash(xcrun simctl *)" "Bash(xcrun xcresulttool *)"
   "Bash(swift build*)" "Bash(swift test*)" "Bash(swiftlint*)" "Bash(plutil *)"
