@@ -13,8 +13,8 @@ There is no build, lint or test suite. To check changes:
 - Syntax check: `bash -n ticket-runner.sh install.sh lib/*.sh profiles/*.sh`
 - Show what would be picked up without changing anything: `./ticket-runner.sh --dry-run`. This needs the Jira token in the Keychain and `gh` signed in.
 - Run one ticket now: `./ticket-runner.sh --ticket SCRUM-12`. This is a real run: it moves the Jira card, pushes a branch and opens a PR.
-- Copy changes to the installed runner: `./install.sh`. launchd runs a copy in `~/.listapp-automation/app` because background jobs can't read `~/Documents`, so edits here have no effect on the hourly job until you re-run this. `--reset-token` stores a new Jira token and `--uninstall` stops the hourly job.
-- Runtime state lives in `~/.listapp-automation/`: `logs/runner.log`, `runs/<KEY>-<time>/` (ticket brief, `implement.json`/`review.json` transcripts, PR body, screenshots), plus the runner's own `repos/` clones and `worktrees/`.
+- Copy changes to the installed runner: `./install.sh`. launchd runs a copy in `~/.kitlist-automation/app` because background jobs can't read `~/Documents`, so edits here have no effect on the hourly job until you re-run this. `--reset-token` stores a new Jira token and `--uninstall` stops the hourly job.
+- Runtime state lives in `~/.kitlist-automation/`: `logs/runner.log`, `runs/<KEY>-<time>/` (ticket brief, `implement.json`/`review.json` transcripts, PR body, screenshots), plus the runner's own `repos/` clones and `worktrees/`.
 
 ## Architecture
 

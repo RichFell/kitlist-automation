@@ -1,4 +1,4 @@
-# ListApp ticket runner configuration. Sourced by ticket-runner.sh and install.sh.
+# Kitlist ticket runner configuration. Sourced by ticket-runner.sh and install.sh.
 # After editing, re-run ./install.sh so the installed copy picks up the change.
 
 JIRA_SITE="https://richfellure.atlassian.net"
@@ -20,7 +20,7 @@ MAX_TURNS_REVIEW=80
 CLAUDE_MODEL=""   # empty = Claude Code's default model
 
 # Where the runner keeps its own clones, worktrees, run logs and installed copy.
-STATE_DIR="$HOME/.listapp-automation"
+STATE_DIR="$HOME/.kitlist-automation"
 
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 if [ -z "${JAVA_HOME:-}" ] && [ -d "/Applications/Android Studio.app/Contents/jbr/Contents/Home" ]; then

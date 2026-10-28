@@ -1,5 +1,5 @@
 #!/bin/bash
-# Installs (or updates) the hourly ListApp ticket runner on this Mac.
+# Installs (or updates) the hourly Kitlist ticket runner on this Mac.
 #   ./install.sh               install or update; asks for the Jira token the first time
 #   ./install.sh --reset-token store a new Jira API token
 #   ./install.sh --uninstall   stop the hourly job (keeps logs and clones)
@@ -7,7 +7,7 @@ set -euo pipefail
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SRC/config.sh"
 APP_DIR="$STATE_DIR/app"
-LABEL="com.richfell.listapp-ticket-runner"
+LABEL="com.richfell.kitlist-ticket-runner"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 DOMAIN="gui/$(id -u)"
 

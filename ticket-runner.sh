@@ -1,5 +1,5 @@
 #!/bin/bash
-# ticket-runner.sh: picks up ListApp Jira tickets in "Ready for Claude", has
+# ticket-runner.sh: picks up Kitlist Jira tickets in "Ready for Claude", has
 # Claude Code implement and self-review each one in a fresh worktree, then
 # pushes the branch, opens a GitHub PR and moves the ticket to "In Review".
 #
