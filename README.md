@@ -64,7 +64,7 @@ Change these in `config.sh` and the files in `profiles/`:
   - column names
   - tickets per run (default 1)
   - turn limits
-  - model for each phase (review defaults to Sonnet) and effort
+  - model for each phase (review defaults to Sonnet), the Explore subagent model, and effort
 - **`profiles/*.sh`, per repo:**
   - base branch (`develop` for both apps; `main` for kitlist-ios-services; `stage` for the backend)
   - simulator and emulator names

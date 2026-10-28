@@ -1,6 +1,6 @@
 Kitlist iOS repo (SwiftUI, MVVM-C): the iOS app. Xcode's MCP tools are not available in unattended runs; use `xcodebuild` and `xcrun` directly. Find scheme names with `xcodebuild -list -project Kitlist.xcodeproj`; CLAUDE.md wins if it names them.
 
-- iOS build: `xcodebuild -project Kitlist.xcodeproj -scheme Kitlist -destination 'platform=iOS Simulator,id=<phone id>' build`
+- iOS build: `xcodebuild -project Kitlist.xcodeproj -scheme Kitlist -destination 'platform=iOS Simulator,id=<phone id>' -quiet build`
 - iOS unit tests: same command with `test -only-testing:KitlistTests` instead of `build`.
 - The project uses synchronized folders: create Swift files on disk and never edit `project.pbxproj` by hand.
 - The `<phone id>` comes from `{{RUN_DIR}}/devices.txt`.

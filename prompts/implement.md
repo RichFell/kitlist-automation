@@ -14,6 +14,10 @@ You are implementing Jira ticket {{KEY}} unattended. Nobody can answer questions
 - If the ticket links Figma and a Figma tool is available, use it to check layout, spacing, colors and copy. If no Figma tool is available, build from the ticket text and say so in the PR body.
 - Commit as you go with messages like `{{KEY}}: Add list sharing invite view`. Don't push, switch branches, or touch anything outside this worktree and `{{RUN_DIR}}`.
 - Edit files with the Edit and Write tools. Editing through `python`, `sed -i`, `perl -pi` or shell redirects (`cat >`, `printf >`) is denied.
+- Keep the context small, because every message re-reads it:
+  - Survey unfamiliar code with an Explore subagent and read files yourself only once you know which lines you need.
+  - Put independent reads, edits to different files and checks in one message as parallel tool calls.
+  - Trim build and test output to what you need: pipe it through `tail -40`, or `grep` for errors and the summary line, and rerun a single failing test for detail.
 - A tool call that is denied is denied on purpose. Find another way or report blocked; don't try to get around it.
 
 ## Repo specifics

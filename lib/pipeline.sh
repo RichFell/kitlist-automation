@@ -7,7 +7,7 @@ COMMON_ALLOW=(
   "Bash(git add *)" "Bash(git commit *)" "Bash(git restore *)" "Bash(git rm *)" "Bash(git mv *)"
   "Bash(ls)" "Bash(ls *)" "Bash(cat *)" "Bash(head *)" "Bash(tail *)" "Bash(wc *)" "Bash(grep *)"
   "Bash(mkdir *)" "Bash(cp *)" "Bash(mv *)" "Bash(jq *)" "Bash(sips *)" "Bash(sleep *)"
-  "mcp__figma" "mcp__Figma" "mcp__claude_ai_Figma"
+  "mcp__figma" "mcp__Figma" "mcp__claude_ai_Figma" Agent Task
 )
 COMMON_DENY=(
   "Bash(git push*)" "Bash(git checkout*)" "Bash(git switch*)" "Bash(git reset --hard*)"
@@ -72,15 +72,25 @@ run_claude() {
   args+=(--disable-slash-commands)
   [ "${USE_FIGMA:-0}" = 1 ] || args+=(--strict-mcp-config)
   log "$KEY: $phase started"
-  ( cd "$WT" && caffeinate -i claude "${args[@]}" ) >"$RUN_DIR/$phase.json" 2>"$RUN_DIR/$phase.err"
+  ( cd "$WT" && export CLAUDE_CODE_SUBAGENT_MODEL="${CLAUDE_SUBAGENT_MODEL:-}" &&
+    { [ -n "$CLAUDE_SUBAGENT_MODEL" ] || unset CLAUDE_CODE_SUBAGENT_MODEL; } &&
+    caffeinate -i claude "${args[@]}" ) >"$RUN_DIR/$phase.json" 2>"$RUN_DIR/$phase.err"
   rc=$?
   if [ $rc -ne 0 ] || [ "$(jq -r '.is_error // false' "$RUN_DIR/$phase.json" 2>/dev/null)" != "false" ]; then
     log "$KEY: $phase failed (exit $rc, $(jq -r '.subtype // "no result"' "$RUN_DIR/$phase.json" 2>/dev/null))"
     return 1
   fi
   turns="$(jq -r '.num_turns // "?"' "$RUN_DIR/$phase.json")"
-  log "$KEY: $phase finished in $turns turns"
+  log "$KEY: $phase finished in $turns turns, $(with_commas "$(phase_tokens "$phase")") tokens"
 }
+
+# Tokens a phase used: fresh input, cache writes, cache reads and output.
+phase_tokens() {
+  jq -r '.usage | (.input_tokens // 0) + (.cache_creation_input_tokens // 0)
+                + (.cache_read_input_tokens // 0) + (.output_tokens // 0)' "$RUN_DIR/$1.json" 2>/dev/null || echo 0
+}
+
+with_commas() { printf '%s' "$1" | rev | sed 's/[0-9]\{3\}/&,/g' | rev | sed 's/^,//'; }
 
 # Fails the ticket unless Claude wrote status.json with status "done".
 require_done() {
@@ -201,8 +211,11 @@ process_ticket() {
   fi
   publish_screenshots ||
     printf '\n> Screenshots couldn'"'"'t be uploaded. They are on the Mac in %s/screenshots.\n' "$RUN_DIR" >> "$BODY"
-  printf '\n---\nJira: [%s](%s/browse/%s) · Implemented and self-reviewed by Claude Code\n' \
-    "$KEY" "$JIRA_SITE" "$KEY" >> "$BODY"
+  local impl_tokens review_tokens tokens
+  impl_tokens="$(phase_tokens implement)"; review_tokens="$(phase_tokens review)"
+  tokens="$(with_commas $((impl_tokens + review_tokens))) tokens (implement $(with_commas "$impl_tokens"), review $(with_commas "$review_tokens"))"
+  printf '\n---\nJira: [%s](%s/browse/%s) · Implemented and self-reviewed by Claude Code · %s\n' \
+    "$KEY" "$JIRA_SITE" "$KEY" "$tokens" >> "$BODY"
 
   git -C "$WT" push --quiet -u origin "$BRANCH" >>"$LOG_FILE" 2>&1 ||
     { fail_ticket "$KEY" "pushing $BRANCH to GitHub failed."; return 1; }
@@ -211,7 +224,8 @@ process_ticket() {
     { fail_ticket "$KEY" "the branch was pushed but opening the PR failed."; return 1; }
 
   jira_transition "$KEY" "$REVIEW_STATUS" || true
-  jira_comment "$KEY" "Pull request ready for review: $pr_url" || true
+  jira_comment "$KEY" "Pull request ready for review: $pr_url
+Tokens used: $tokens" || true
   git -C "$REPO" worktree remove --force "$WT" 2>/dev/null || true
-  log "$KEY: PR opened $pr_url"
+  log "$KEY: PR opened $pr_url, $tokens"
 }

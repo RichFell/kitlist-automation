@@ -9,6 +9,7 @@ The ticket targets **{{TARGETS}}**; running devices are listed in `{{RUN_DIR}}/d
 - Scope creep, dead code, debug leftovers, TODOs, secrets or keys.
 
 Edit files with the Edit and Write tools. Editing through `python`, `sed -i`, `perl -pi` or shell redirects (`cat >`, `printf >`) is denied.
+Put independent reads and checks in one message as parallel tool calls, and trim build and test output with `tail` or `grep`.
 
 Fix real problems yourself and commit them as `{{KEY}}: Review fixes: <what>`. Don't restyle code that is merely different from how you'd write it. After any fix, rerun the verification below and retake affected screenshots.
 
