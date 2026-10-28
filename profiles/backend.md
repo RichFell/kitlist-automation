@@ -1,7 +1,7 @@
-Supabase backend. Work against the LOCAL Supabase stack only.
+Supabase backend. Follow the repo's `CLAUDE.md` for the schema workflow (declarative schemas in `supabase/schemas/`, generated migrations), security rules and test conventions. The rules below are specific to this runner.
 
-- Never run anything that targets the linked production project or listapp-staging: no `--linked`, `--db-url`, `--project-ref`, `db push`, `link`, `functions deploy` or `secrets`. These are denied. Deploying is the human's job after merge.
-- Start the local stack with `supabase start` if it isn't running (`supabase status`).
-- Schema changes go in new migrations: `supabase migration new <snake_case_name>`. Never edit a migration that already exists on `origin/{{BASE_BRANCH}}`.
-- Verify: `supabase db reset` (local) applies every migration cleanly, then `supabase test db` passes. Add pgTAP tests for new tables, RLS policies and RPCs, including a test that a user can't read or change another user's data.
+- Work against the LOCAL Supabase stack only. Start it with `supabase start` if `supabase status` shows it isn't running.
+- Never run anything that targets a hosted project (`kitlist-staging` or `kitlist-production`): no `--linked`, `--db-url`, `--project-ref`, `db push`, `link`, `functions deploy` or `secrets`. These are denied. Deploying is the human's job after merge.
+- Never edit a migration that already exists on `origin/{{BASE_BRANCH}}`.
+- Before finishing, `supabase db reset && supabase test db` must pass and `supabase db advisors --local` must report nothing new.
 - No screenshots. In the PR body, include the test summary and, for schema changes, the list of tables, policies and functions added or changed.

@@ -6,7 +6,8 @@ BASE_BRANCH="stage"       # PRs target stage
 PROFILE_ALLOW=(
   "Bash(supabase start*)" "Bash(supabase stop*)" "Bash(supabase status*)"
   "Bash(supabase db reset*)" "Bash(supabase test db*)" "Bash(supabase db lint*)"
-  "Bash(supabase db diff*)" "Bash(supabase migration new *)" "Bash(supabase gen types *)"
+  "Bash(supabase db schema declarative sync*)" "Bash(supabase migration new *)"
+  "Bash(supabase migration up --local*)" "Bash(supabase db advisors --local*)" "Bash(supabase gen types *)"
   "Bash(deno test*)" "Bash(deno check*)" "Bash(deno fmt*)" "Bash(deno lint*)"
   "Bash(npm test*)" "Bash(npm run *)"
 )
