@@ -1,7 +1,7 @@
 # iOS + watchOS apps: github.com/RichFell/ListApp (labels: ios, watchos)
 GH_REPO="RichFell/ListApp"
 BASE_BRANCH="develop"     # PRs target develop; releases go to master by hand
-SIM_NAME="iPhone 17 Pro"  # keep in sync with .claude/hooks/stop-build-check.sh
+SIM_NAME="iPhone 18 Pro"  # keep in sync with .claude/hooks/stop-build-check.sh
 WATCH_SIM_NAME=""         # empty = first available Apple Watch simulator
 PROFILE_ALLOW=(
   "Bash(xcodebuild *)" "Bash(xcrun simctl *)" "Bash(xcrun xcresulttool *)"
