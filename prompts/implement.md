@@ -17,7 +17,7 @@ You are implementing Jira ticket {{KEY}} unattended. Nobody can answer questions
 - Edit files with the Edit and Write tools, including files in `{{RUN_DIR}}`. Editing through `python`, `sed -i`, `perl -pi` or shell redirects (`cat >`, `cat >>`, `printf >`) is denied.
 - Read files with the Read tool, several in one message, not with `cat` loops. Keep Bash commands to one plain command or a simple pipe: `$(...)`, `for` loops, `cd`, and shell variables in paths or redirects are denied and waste a turn.
 - Keep the context small, because every message re-reads it:
-  - If the Agent tool is available, survey unfamiliar code with an Explore subagent. Either way, read files yourself only once you know which lines you need.
+  - If the Agent tool is available, survey unfamiliar code with an Explore subagent. Ask it for file paths, line ranges and the signatures you'll call, not file contents, and don't re-read what it already told you. Either way, read only the files you'll edit or must copy patterns from, using `offset`/`limit` for long ones.
   - Put independent reads, edits to different files and checks in one message as parallel tool calls.
   - Grep with `files_with_matches` or `count` first to find where something is. Then grep in content mode with a narrow `path` and a `head_limit`, rather than one broad pattern over the whole repo.
   - Trim build and test output to what you need: pipe it through `tail -40`, or `grep` for errors and the summary line, and rerun a single failing test for detail.

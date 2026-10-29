@@ -6,6 +6,7 @@ USE_FIGMA=1               # keep the claude.ai Figma connector when the ticket l
 USE_SUBAGENTS=1           # let the implement phase survey this large repo with Explore subagents
 DERIVED_DATA="$STATE_DIR/derived-data/kitlist-ios"  # shared by every run, so builds start warm
 PROFILE_ALLOW=(
+  "Bash($HERE/scripts/ios-build.sh*)" "Bash($HERE/scripts/ios-test.sh*)" "Bash($HERE/scripts/ios-screenshots.sh*)"
   "Bash(xcodebuild *)" "Bash(xcrun simctl *)" "Bash(xcrun xcresulttool *)"
   "Bash(swift build*)" "Bash(swift test*)" "Bash(swiftlint*)" "Bash(plutil *)"
 )

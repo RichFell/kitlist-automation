@@ -16,6 +16,8 @@ READY_LABEL="ai-ready"         # cards need this label to be picked up; empty = 
 
 # Limits per run. launchd starts a run every hour while the Mac is awake.
 MAX_TICKETS_PER_RUN=1
+# --max-turns counts model calls, not the much higher num_turns in the result
+# (SCRUM-35: 46 model calls, 106 tool calls, num_turns 112). The log shows both counts.
 MAX_TURNS_IMPLEMENT=80          # a ticket that needs more is usually too big; split it
 MAX_TURNS_REVIEW=80
 CLAUDE_MODEL_IMPLEMENT=""      # empty = Claude Code's default model

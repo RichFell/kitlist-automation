@@ -67,25 +67,30 @@ copy_backend_schema() {
 # The settings file lives outside every directory Claude can write to, and is
 # rewritten before each phase, so one phase can't widen the next one's permissions.
 # "//" makes a rule path absolute. .claude/ is denied too: the review phase would
-# otherwise load project settings or hooks the implement phase wrote.
+# otherwise load project settings or hooks the implement phase wrote. The runner's
+# own files are denied because profiles allow its scripts/ helpers to run, and
+# ~/.claude because a later run would load memory or settings written there.
+# Auto memory is off for the same reason: notes a run leaves for itself belong in
+# the profile, where a human reviews them.
 write_settings() {
   local allow deny protect=() p
-  for p in "$SETTINGS_FILE" "$WT/.claude/**" "$RUN_DIR/.claude/**"; do
+  for p in "$SETTINGS_FILE" "$WT/.claude/**" "$RUN_DIR/.claude/**" "$HERE/**" "$HOME/.claude/**"; do
     protect+=("Edit(/$p)" "Write(/$p)")
   done
   allow="$(json_array "${COMMON_ALLOW[@]}" ${PROFILE_ALLOW[@]+"${PROFILE_ALLOW[@]}"})"
   deny="$(json_array "${COMMON_DENY[@]}" ${PROFILE_DENY[@]+"${PROFILE_DENY[@]}"} "${protect[@]}")"
   mkdir -p "$(dirname "$SETTINGS_FILE")"
-  jq -n --argjson a "$allow" --argjson d "$deny" '{permissions: {allow: $a, deny: $d}}' > "$SETTINGS_FILE"
+  jq -n --argjson a "$allow" --argjson d "$deny" \
+    '{autoMemoryEnabled: false, permissions: {allow: $a, deny: $d}}' > "$SETTINGS_FILE"
 }
 
 # run_claude PHASE PROMPT_FILE MAX_TURNS [MODEL]
 run_claude() {
-  local phase="$1" prompt rc turns
+  local phase="$1" prompt rc
   # PROFILE goes first so placeholders inside the profile text are filled in too.
   prompt="$(render_template "$2" PROFILE "$(cat "$HERE/profiles/$PROFILE.md")" KEY "$KEY" \
             RUN_DIR "$RUN_DIR" BASE_BRANCH "$BASE_BRANCH" BRANCH "$BRANCH" TARGETS "$TARGETS" \
-            DERIVED_DATA "${DERIVED_DATA:-}")"
+            DERIVED_DATA "${DERIVED_DATA:-}" SCRIPTS "$HERE/scripts")"
   write_settings
   local args=(-p "$prompt" --settings "$SETTINGS_FILE" --permission-mode acceptEdits
               --add-dir "$RUN_DIR" --output-format json --max-turns "$3")
@@ -105,22 +110,43 @@ run_claude() {
     args+=(--strict-mcp-config)
   fi
   log "$KEY: $phase started"
+  # KITLIST_* tell the profile's scripts/ helpers where the run's files are.
   ( cd "$WT" && export CLAUDE_CODE_SUBAGENT_MODEL="${CLAUDE_SUBAGENT_MODEL:-}" &&
     { [ -n "$CLAUDE_SUBAGENT_MODEL" ] || unset CLAUDE_CODE_SUBAGENT_MODEL; } &&
+    export CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 KITLIST_RUN_DIR="$RUN_DIR" KITLIST_DERIVED_DATA="${DERIVED_DATA:-}" &&
     caffeinate -i claude "${args[@]}" ) >"$RUN_DIR/$phase.json" 2>"$RUN_DIR/$phase.err"
   rc=$?
   if [ $rc -ne 0 ] || [ "$(jq -r '.is_error // false' "$RUN_DIR/$phase.json" 2>/dev/null)" != "false" ]; then
     log "$KEY: $phase failed (exit $rc, $(jq -r '.subtype // "no result"' "$RUN_DIR/$phase.json" 2>/dev/null))"
     return 1
   fi
-  turns="$(jq -r '.num_turns // "?"' "$RUN_DIR/$phase.json")"
-  log "$KEY: $phase finished in $turns turns, $(with_commas "$(phase_tokens "$phase")") tokens"
+  log "$KEY: $phase finished: $(phase_calls "$phase"), $(with_commas "$(phase_tokens "$phase")") new tokens" \
+      "+ $(with_commas "$(phase_tokens "$phase" cached)") cache reads, \$$(jq -r '.total_cost_usd // 0 | . * 100 | round / 100' "$RUN_DIR/$phase.json")"
 }
 
-# Tokens a phase used: fresh input, cache writes, cache reads and output.
+# "N model calls, M tool calls" for a phase, counted from its session transcript.
+# The result's num_turns counts tool results, not model calls, so it reads far
+# higher than what --max-turns limits.
+phase_calls() {
+  local sid t
+  sid="$(jq -r '.session_id // ""' "$RUN_DIR/$1.json" 2>/dev/null)"
+  t="$HOME/.claude/projects/$(printf '%s' "$WT" | sed 's/[^A-Za-z0-9]/-/g')/$sid.jsonl"
+  if [ -z "$sid" ] || [ ! -f "$t" ]; then
+    echo "$(jq -r '.num_turns // "?"' "$RUN_DIR/$1.json") turns"; return
+  fi
+  jq -rs '[.[] | select(.type == "assistant")] as $a
+    | "\($a | map(.message.id) | unique | length) model calls, \([$a[].message.content[]? | select(.type == "tool_use")] | length) tool calls"' "$t"
+}
+
+# Tokens a phase used. Default: fresh input, cache writes and output. "cached": cache
+# reads, which re-read the whole context on every model call and cost about a tenth.
 phase_tokens() {
-  jq -r '.usage | (.input_tokens // 0) + (.cache_creation_input_tokens // 0)
-                + (.cache_read_input_tokens // 0) + (.output_tokens // 0)' "$RUN_DIR/$1.json" 2>/dev/null || echo 0
+  if [ "${2:-}" = cached ]; then
+    jq -r '.usage.cache_read_input_tokens // 0' "$RUN_DIR/$1.json" 2>/dev/null || echo 0
+  else
+    jq -r '.usage | (.input_tokens // 0) + (.cache_creation_input_tokens // 0)
+                  + (.output_tokens // 0)' "$RUN_DIR/$1.json" 2>/dev/null || echo 0
+  fi
 }
 
 with_commas() { printf '%s' "$1" | rev | sed 's/[0-9]\{3\}/&,/g' | rev | sed 's/^,//'; }
@@ -245,9 +271,10 @@ process_ticket() {
   fi
   publish_screenshots ||
     printf '\n> Screenshots couldn'"'"'t be uploaded. They are on the Mac in %s/screenshots.\n' "$RUN_DIR" >> "$BODY"
-  local impl_tokens review_tokens tokens
+  local impl_tokens review_tokens cached tokens
   impl_tokens="$(phase_tokens implement)"; review_tokens="$(phase_tokens review)"
-  tokens="$(with_commas $((impl_tokens + review_tokens))) tokens (implement $(with_commas "$impl_tokens"), review $(with_commas "$review_tokens"))"
+  cached=$(( $(phase_tokens implement cached) + $(phase_tokens review cached) ))
+  tokens="$(with_commas $((impl_tokens + review_tokens))) new tokens (implement $(with_commas "$impl_tokens"), review $(with_commas "$review_tokens")) + $(with_commas "$cached") cache reads"
   printf '\n---\nJira: [%s](%s/browse/%s) · Implemented and self-reviewed by Claude Code · %s\n' \
     "$KEY" "$JIRA_SITE" "$KEY" "$tokens" >> "$BODY"
 
