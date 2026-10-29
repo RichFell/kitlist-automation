@@ -19,6 +19,8 @@ COMMON_DENY=(
   "Read(~/.ssh/**)" "Read(~/.aws/**)" "Read(~/.gnupg/**)" "Read(~/.config/**)" "Read(~/.netrc)"
   "Read(~/.zsh_history)" "Read(~/.bash_history)"
   "Read(~/.kitlist-automation/settings/**)" "Read(~/.kitlist-automation/logs/**)"
+  # The runner pulls the ticket into ticket/; Claude never talks to Jira itself.
+  "mcp__claude_ai_Atlassian" "mcp__atlassian" "mcp__Atlassian" "mcp__plugin_data_atlassian"
 )
 
 fail_ticket() {
@@ -74,7 +76,7 @@ copy_backend_schema() {
 # the profile, where a human reviews them.
 write_settings() {
   local allow deny protect=() p
-  for p in "$SETTINGS_FILE" "$WT/.claude/**" "$RUN_DIR/.claude/**" "$HERE/**" "$HOME/.claude/**"; do
+  for p in "$SETTINGS_FILE" "$WT/.claude/**" "$WT/ticket/**" "$RUN_DIR/.claude/**" "$HERE/**" "$HOME/.claude/**"; do
     protect+=("Edit(/$p)" "Write(/$p)")
   done
   allow="$(json_array "${COMMON_ALLOW[@]}" ${PROFILE_ALLOW[@]+"${PROFILE_ALLOW[@]}"})"
@@ -104,7 +106,7 @@ run_claude() {
   # skills always, and the MCP servers unless the profile allows the Figma connector
   # and the ticket brief actually links a Figma design.
   args+=(--disable-slash-commands)
-  if [ "${USE_FIGMA:-0}" = 1 ] && grep -q 'figma\.com/' "$RUN_DIR/ticket.md" 2>/dev/null; then
+  if [ "${USE_FIGMA:-0}" = 1 ] && grep -rq 'figma\.com/' "$WT/ticket" 2>/dev/null; then
     log "$KEY: $phase keeps MCP servers for the Figma link"
   else
     args+=(--strict-mcp-config)
@@ -195,9 +197,28 @@ publish_screenshots() {
     done; } >> "$BODY"
 }
 
+# pull_ticket ISSUE_JSON: refresh ticket/ in the worktree with jira-to-md.sh, one
+# Markdown file for the ticket and one each for its parent and linked tickets.
+# It's the spec for both phases and is committed first, so each repo keeps a
+# living copy of the work it was asked to do. No build target includes ticket/.
+pull_ticket() {
+  local key
+  mkdir -p "$WT/ticket" || return 1
+  for key in $(printf '%s' "$1" | jq -r '.key, (.fields.parent.key // empty),
+                 (.fields.issuelinks[]? | (.inwardIssue // .outwardIssue).key)'); do
+    valid_key "$key" || continue
+    if ! "$HERE/scripts/jira-to-md.sh" -f -o "$WT/ticket" "$key" >>"$LOG_FILE" 2>&1; then
+      [ "$key" = "$KEY" ] && return 1
+      log "$KEY: couldn't pull related ticket $key"
+    fi
+  done
+  git -C "$WT" add ticket || return 1
+  git -C "$WT" diff --cached --quiet || git -C "$WT" commit --quiet -m "$KEY: Pull ticket from Jira"
+}
+
 process_ticket() {
   KEY="$1"
-  local issue labels summary existing ahead leftovers pr_url
+  local issue labels summary existing ahead leftovers pr_url ticket_head
   valid_key "$KEY" || { log "Refusing \"$KEY\": not a Jira key."; return 1; }
   issue="$(jira_issue "$KEY")" || { log "$KEY: couldn't read the ticket"; return 1; }
   summary="$(printf '%s' "$issue" | jq -r .fields.summary)"
@@ -213,7 +234,6 @@ process_ticket() {
   SETTINGS_FILE="$STATE_DIR/settings/$RUN_ID.json"
   mkdir -p "$RUN_DIR/screenshots"
   printf '%s' "$issue" > "$RUN_DIR/ticket.json"
-  { printf '%s' "$issue" | jira_ticket_markdown; jira_related_markdown "$issue"; } > "$RUN_DIR/ticket.md"
   log "$KEY: starting ($TARGETS) $summary"
 
   BASE_MISSING=0
@@ -246,6 +266,9 @@ process_ticket() {
   git -C "$REPO" worktree prune
   git -C "$REPO" worktree add --quiet -B "$BRANCH" "$WT" "origin/$BASE_BRANCH" ||
     { fail_ticket "$KEY" "couldn't create a worktree from origin/$BASE_BRANCH."; return 1; }
+  pull_ticket "$issue" ||
+    { fail_ticket "$KEY" "couldn't save the ticket to ticket/$KEY.md with jira-to-md.sh (see the runner log)."; return 1; }
+  ticket_head="$(git -C "$WT" rev-parse HEAD)"
   prepare_worktree
   copy_backend_schema
 
@@ -255,7 +278,7 @@ process_ticket() {
   run_claude implement "$HERE/prompts/implement.md" "$MAX_TURNS_IMPLEMENT" "$CLAUDE_MODEL_IMPLEMENT" ||
     { fail_ticket "$KEY" "the implementation step errored or ran out of turns."; return 1; }
   require_done implementation || return 1
-  ahead="$(git -C "$WT" rev-list --count "origin/$BASE_BRANCH..HEAD")"
+  ahead="$(git -C "$WT" rev-list --count "$ticket_head..HEAD")"
   [ "$ahead" -gt 0 ] || { fail_ticket "$KEY" "Claude finished without committing any changes."; return 1; }
 
   run_claude review "$HERE/prompts/review.md" "$MAX_TURNS_REVIEW" "$CLAUDE_MODEL_REVIEW" ||

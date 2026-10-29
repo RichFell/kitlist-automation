@@ -40,36 +40,3 @@ jira_transition() {
 
 jira_comment()   { jira_api POST "/rest/api/2/issue/$1/comment" "$(jq -n --arg b "$2" '{body: $b}')" >/dev/null; }
 jira_add_label() { jira_api PUT "/rest/api/2/issue/$1" "$(jq -n --arg l "$2" '{update: {labels: [{add: $l}]}}')" >/dev/null; }
-
-# Ticket JSON on stdin -> markdown brief for Claude.
-jira_ticket_markdown() {
-  jq -r --arg site "$JIRA_SITE" '
-    "# \(.key): \(.fields.summary)\n\n" +
-    "- Type: \(.fields.issuetype.name)\n" +
-    "- Labels: \(.fields.labels | join(", "))\n" +
-    "- Parent: \(if .fields.parent then "\(.fields.parent.key) (\(.fields.parent.fields.summary))" else "none" end)\n" +
-    "- Jira: \($site)/browse/\(.key)\n\n" +
-    "## Description\n\n\(.fields.description // "(no description)")\n\n" +
-    "## Comments\n\n" +
-    ([.fields.comment.comments[]? | "**\(.author.displayName)** (\(.created[0:10])):\n\(.body)"]
-      | if length == 0 then "(none)" else join("\n\n") end)'
-}
-
-# Ticket JSON as $1 -> "## Related tickets" section with the parent's and each
-# linked ticket's description, so Claude doesn't stop because it can't open them.
-jira_related_markdown() {
-  local keys key rel
-  keys="$(printf '%s' "$1" | jq -r '
-    (if .fields.parent then "\(.fields.parent.key)\tparent" else empty end),
-    (.fields.issuelinks[]? | if .inwardIssue then "\(.inwardIssue.key)\t\(.type.inward)"
-                             else "\(.outwardIssue.key)\t\(.type.outward)" end)')"
-  [ -n "$keys" ] || return 0
-  printf '\n\n## Related tickets\n'
-  printf '%s\n' "$keys" | while IFS="$(printf '\t')" read -r key rel; do
-    valid_key "$key" || continue
-    jira_api GET "/rest/api/2/issue/$key?fields=summary,status,description" | jq -r --arg rel "$rel" '
-      "\n### \(.key) (\($rel), \(.fields.status.name)): \(.fields.summary)\n\n" +
-      ((.fields.description // "(no description)") as $d
-        | if ($d | length) > 3000 then $d[0:3000] + "\n\n(truncated)" else $d end)' || true
-  done
-}
