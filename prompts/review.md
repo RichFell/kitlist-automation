@@ -9,7 +9,7 @@ The ticket targets **{{TARGETS}}**; running devices are listed in `{{RUN_DIR}}/d
 - Scope creep, dead code, debug leftovers, TODOs, secrets or keys.
 
 Edit files with the Edit and Write tools, including `{{RUN_DIR}}/pr-body.md` and `status.json`. Editing through `python`, `sed -i`, `perl -pi` or shell redirects (`cat >`, `cat >>`, `printf >`) is denied.
-Read files with the Read tool, several in one message, not with `cat`. Keep Bash commands to one plain command or a simple pipe: `$(...)`, `for` loops, `cd`, and shell variables in paths or redirects are denied and waste a turn.
+Read files with the Read tool, several in one message, not with `cat`. Keep Bash commands to one plain command or a simple pipe: `$(...)`, `for` loops, `cd`, and shell variables in paths or redirects are denied and waste a turn. Give content-mode greps a narrow `path` and a `head_limit`.
 Put independent reads and checks in one message as parallel tool calls, and trim build and test output with `tail` or `grep`.
 
 Fix real problems yourself and commit them as `{{KEY}}: Review fixes: <what>`. Don't restyle code that is merely different from how you'd write it. After any fix, rerun the verification below and retake affected screenshots.

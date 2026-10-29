@@ -13,6 +13,12 @@ COMMON_DENY=(
   "Bash(git push*)" "Bash(git checkout*)" "Bash(git switch*)" "Bash(git reset --hard*)"
   "Bash(git rebase*)" "Bash(git branch -D*)" "Bash(git worktree*)" "Bash(git remote*)"
   "Bash(gh *)" "Bash(curl *)" "Bash(wget *)" "Bash(rm -rf*)" "Bash(sudo *)" "Bash(security *)"
+  # Personal files and credentials. Builds use DerivedData under STATE_DIR, so
+  # nothing a ticket needs lives in these folders.
+  "Read(~/Library/**)" "Read(~/Documents/**)" "Read(~/Desktop/**)" "Read(~/Downloads/**)"
+  "Read(~/.ssh/**)" "Read(~/.aws/**)" "Read(~/.gnupg/**)" "Read(~/.config/**)" "Read(~/.netrc)"
+  "Read(~/.zsh_history)" "Read(~/.bash_history)"
+  "Read(~/.kitlist-automation/settings/**)" "Read(~/.kitlist-automation/logs/**)"
 )
 
 fail_ticket() {
@@ -41,6 +47,23 @@ ensure_repo() {
     { log "$KEY: $GH_REPO has no $BASE_BRANCH branch on GitHub"; BASE_MISSING=1; return 1; }
 }
 
+# Copies supabase/schemas from the backend's $BACKEND_SCHEMA_BRANCH into
+# RUN_DIR/backend-schema, so app and ServicesFactory tickets use the real table,
+# column and function names. A failure only logs a warning.
+copy_backend_schema() {
+  local repo="$STATE_DIR/repos/${BACKEND_REPO#*/}"
+  [ "$PROFILE" = backend ] && return 0
+  if [ ! -d "$repo/.git" ]; then
+    gh repo clone "$BACKEND_REPO" "$repo" -- --quiet >>"$LOG_FILE" 2>&1 ||
+      { log "$KEY: warning: couldn't clone $BACKEND_REPO, so the run has no backend schema"; return 0; }
+  fi
+  mkdir -p "$RUN_DIR/backend-schema"
+  { git -C "$repo" fetch origin --prune --quiet &&
+    git -C "$repo" archive "origin/$BACKEND_SCHEMA_BRANCH" supabase/schemas |
+      tar -x -C "$RUN_DIR/backend-schema" --strip-components 2; } ||
+    log "$KEY: warning: couldn't copy the backend schema from $BACKEND_REPO"
+}
+
 # The settings file lives outside every directory Claude can write to, and is
 # rewritten before each phase, so one phase can't widen the next one's permissions.
 # "//" makes a rule path absolute. .claude/ is denied too: the review phase would
@@ -61,7 +84,8 @@ run_claude() {
   local phase="$1" prompt rc turns
   # PROFILE goes first so placeholders inside the profile text are filled in too.
   prompt="$(render_template "$2" PROFILE "$(cat "$HERE/profiles/$PROFILE.md")" KEY "$KEY" \
-            RUN_DIR "$RUN_DIR" BASE_BRANCH "$BASE_BRANCH" BRANCH "$BRANCH" TARGETS "$TARGETS")"
+            RUN_DIR "$RUN_DIR" BASE_BRANCH "$BASE_BRANCH" BRANCH "$BRANCH" TARGETS "$TARGETS" \
+            DERIVED_DATA "${DERIVED_DATA:-}")"
   write_settings
   local args=(-p "$prompt" --settings "$SETTINGS_FILE" --permission-mode acceptEdits
               --add-dir "$RUN_DIR" --output-format json --max-turns "$3")
@@ -195,6 +219,7 @@ process_ticket() {
   git -C "$REPO" worktree add --quiet -B "$BRANCH" "$WT" "origin/$BASE_BRANCH" ||
     { fail_ticket "$KEY" "couldn't create a worktree from origin/$BASE_BRANCH."; return 1; }
   prepare_worktree
+  copy_backend_schema
 
   trap device_down EXIT
   device_up || { fail_ticket "$KEY" "a simulator or emulator for $TARGETS didn't start (see the runner log)."; return 1; }

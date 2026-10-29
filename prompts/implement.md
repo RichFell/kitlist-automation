@@ -10,7 +10,7 @@ You are implementing Jira ticket {{KEY}} unattended. Nobody can answer questions
 
 ## Rules
 - Implement exactly what the ticket asks: its acceptance criteria, plus any parent Epic criteria it cites, nothing more. Put follow-up ideas in the PR body instead of building them.
-- The ticket, its parent Epic and linked tickets in `ticket.md` are the whole spec. Kitlist behaves the same on iOS and Android, so don't add platform-specific behavior the ticket doesn't describe. Database names don't always match app names (for example `series` and `checklists`): look up the mapping in the schema or CLAUDE.md instead of assuming one.
+- The ticket, its parent Epic and linked tickets in `ticket.md` are the whole spec. Kitlist behaves the same on iOS and Android, so don't add platform-specific behavior the ticket doesn't describe. Database names don't always match app names (for example `series` and `checklists`): look up the mapping in the schema or CLAUDE.md instead of assuming one. Outside the backend repo, the backend schema is in `{{RUN_DIR}}/backend-schema/` (`public/tables`, `public/functions`, `public/types`); grep it for the names you need.
 - If the ticket would make you invent product behavior, contradicts CLAUDE.md, or depends on work that doesn't exist yet, don't guess. Write the blocked status described below, explain what's missing, and stop without changing code.
 - If the ticket links Figma and a Figma tool is available, use it to check layout, spacing, colors and copy. If no Figma tool is available, build from the ticket text and say so in the PR body.
 - Commit as you go with messages like `{{KEY}}: Add list sharing invite view`. Don't push, switch branches, or touch anything outside this worktree and `{{RUN_DIR}}`.
@@ -19,6 +19,7 @@ You are implementing Jira ticket {{KEY}} unattended. Nobody can answer questions
 - Keep the context small, because every message re-reads it:
   - If the Agent tool is available, survey unfamiliar code with an Explore subagent. Either way, read files yourself only once you know which lines you need.
   - Put independent reads, edits to different files and checks in one message as parallel tool calls.
+  - Grep with `files_with_matches` or `count` first to find where something is. Then grep in content mode with a narrow `path` and a `head_limit`, rather than one broad pattern over the whole repo.
   - Trim build and test output to what you need: pipe it through `tail -40`, or `grep` for errors and the summary line, and rerun a single failing test for detail.
 - A tool call that is denied is denied on purpose. Find another way or report blocked; don't try to get around it.
 

@@ -44,6 +44,7 @@ After editing anything in this folder, run `./install.sh` again. The hourly job 
 - **Follow along:** `tail -f ~/.kitlist-automation/logs/runner.log`
 - **Inspect a run:** each run keeps a folder in `~/.kitlist-automation/runs/<KEY>-<time>/` with:
   - the ticket brief
+  - `backend-schema/`, a copy of the backend schema from `stage` (not for backend tickets)
   - Claude's transcripts (`implement.json`, `review.json`)
   - the PR body
   - the screenshots
@@ -66,6 +67,7 @@ Change these in `config.sh` and the files in `profiles/`:
   - turn limits
   - model for each phase (review defaults to Sonnet), the Explore subagent model, and effort
   - the built-in tools each phase loads (`CLAUDE_TOOLS`); `USE_SUBAGENTS=1` in a profile adds Explore subagents
+  - the backend repo and branch that the schema copy comes from (`BACKEND_REPO`, `BACKEND_SCHEMA_BRANCH`)
 - **`profiles/*.sh`, per repo:**
   - base branch (`develop` for both apps; `main` for kitlist-ios-services; `stage` for the backend)
   - simulator and emulator names

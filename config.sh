@@ -26,6 +26,10 @@ CLAUDE_EFFORT=""               # low|medium|high|xhigh|max; empty = Claude Code'
 # keep this to what the phases use. Profiles with USE_SUBAGENTS=1 add Agent to implement.
 CLAUDE_TOOLS="Bash,Read,Write,Edit,Glob,Grep"
 
+# Other repos' tickets get a copy of the backend schema, the contract between the apps.
+BACKEND_REPO="RichFell/kitlist-backend"
+BACKEND_SCHEMA_BRANCH="stage"
+
 # Where the runner keeps its own clones, worktrees, run logs and installed copy.
 STATE_DIR="$HOME/.kitlist-automation"
 
