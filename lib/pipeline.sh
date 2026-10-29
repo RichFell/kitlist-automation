@@ -111,8 +111,10 @@ run_claude() {
   fi
   log "$KEY: $phase started"
   # KITLIST_* tell the profile's scripts/ helpers where the run's files are.
-  ( cd "$WT" && export CLAUDE_CODE_SUBAGENT_MODEL="${CLAUDE_SUBAGENT_MODEL:-}" &&
-    { [ -n "$CLAUDE_SUBAGENT_MODEL" ] || unset CLAUDE_CODE_SUBAGENT_MODEL; } &&
+  # _FORCE drops the Agent tool's own model argument, which otherwise beats the
+  # env var (SCRUM-35's Explore ran on haiku because the call asked for it).
+  ( cd "$WT" && export CLAUDE_CODE_SUBAGENT_MODEL="${CLAUDE_SUBAGENT_MODEL:-}" CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1 &&
+    { [ -n "$CLAUDE_SUBAGENT_MODEL" ] || unset CLAUDE_CODE_SUBAGENT_MODEL CLAUDE_CODE_SUBAGENT_MODEL_FORCE; } &&
     export CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 KITLIST_RUN_DIR="$RUN_DIR" KITLIST_DERIVED_DATA="${DERIVED_DATA:-}" &&
     caffeinate -i claude "${args[@]}" ) >"$RUN_DIR/$phase.json" 2>"$RUN_DIR/$phase.err"
   rc=$?
