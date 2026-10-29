@@ -72,9 +72,14 @@ run_claude() {
   [ "$phase" = implement ] && [ "${USE_SUBAGENTS:-0}" = 1 ] && tools="$tools,Agent"
   [ -n "$tools" ] && args+=(--tools "$tools")
   # The owner's skills and MCP servers add ~15k tokens to every turn. Drop the
-  # skills always, and the MCP servers unless the profile needs the Figma connector.
+  # skills always, and the MCP servers unless the profile allows the Figma connector
+  # and the ticket brief actually links a Figma design.
   args+=(--disable-slash-commands)
-  [ "${USE_FIGMA:-0}" = 1 ] || args+=(--strict-mcp-config)
+  if [ "${USE_FIGMA:-0}" = 1 ] && grep -q 'figma\.com/' "$RUN_DIR/ticket.md" 2>/dev/null; then
+    log "$KEY: $phase keeps MCP servers for the Figma link"
+  else
+    args+=(--strict-mcp-config)
+  fi
   log "$KEY: $phase started"
   ( cd "$WT" && export CLAUDE_CODE_SUBAGENT_MODEL="${CLAUDE_SUBAGENT_MODEL:-}" &&
     { [ -n "$CLAUDE_SUBAGENT_MODEL" ] || unset CLAUDE_CODE_SUBAGENT_MODEL; } &&
