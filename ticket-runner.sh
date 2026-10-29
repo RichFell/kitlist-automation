@@ -35,10 +35,11 @@ JIRA_TOKEN="$(security find-generic-password -a "$JIRA_EMAIL" -s "$JIRA_TOKEN_KE
 if [ -n "$ONLY_TICKET" ]; then
   tickets="$ONLY_TICKET"
 else
-  jql="project = $JIRA_PROJECT AND status = \"$PICKUP_STATUS\" AND (labels IS EMPTY OR labels != $BLOCKED_LABEL) ORDER BY Rank ASC"
+  ready=""; [ -n "${READY_LABEL:-}" ] && ready=" AND labels = $READY_LABEL"
+  jql="project = $JIRA_PROJECT AND status = \"$PICKUP_STATUS\"$ready AND (labels IS EMPTY OR labels != $BLOCKED_LABEL) ORDER BY Rank ASC"
   tickets="$(jira_search_keys "$jql")" || die "Jira search failed. Does the board have a \"$PICKUP_STATUS\" column?"
 fi
-[ -n "$tickets" ] || { log "Nothing in \"$PICKUP_STATUS\"."; exit 0; }
+[ -n "$tickets" ] || { log "Nothing in \"$PICKUP_STATUS\"${READY_LABEL:+ with the $READY_LABEL label}."; exit 0; }
 
 taken=0
 for key in $tickets; do

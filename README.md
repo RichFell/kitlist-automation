@@ -7,7 +7,7 @@ It runs on your Mac with your Claude plan, GitHub sign-in and Jira token, so the
 ## How a ticket flows
 
 1. **Pickup.** Every hour, while the Mac is awake, the runner takes the top card in Ready for Claude.
-   - It skips cards with the `claude-blocked` label.
+   - It only takes cards with the `ai-ready` label (`READY_LABEL` in `config.sh`) and skips cards with the `claude-blocked` label.
    - It skips cards that are "blocked by" an unfinished ticket.
    - It moves the card it takes to In Progress.
 2. **Routing.** The card's platform labels pick the repo and the devices to start:
@@ -51,7 +51,7 @@ After editing anything in this folder, run `./install.sh` again. The hourly job 
 
 ## Writing tickets that work well
 
-- Give each ticket the platform labels it touches, all from one repo: `ios`, `android`, `backend` or `servicesfactory`. Split features that span repos into one ticket per repo under a parent story.
+- Give each ticket the platform labels it touches, all from one repo: `ios`, `android`, `backend` or `servicesfactory`, plus `ai-ready` once it has no open questions. Split features that span repos into one ticket per repo under a parent Epic that holds the shared spec, and link app tickets as "is blocked by" the backend ticket.
 - Write testable acceptance criteria, and say which screens or states the screenshots should show.
 - Link the Figma frame. For iOS and Android tickets, if the claude.ai Figma connector is connected, Claude checks the design against the frame. Otherwise it says in the PR that it worked from the ticket text.
 - Use Jira's "is blocked by" links for ordering. The runner won't start a ticket until its blockers are done.

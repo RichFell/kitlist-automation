@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A bash-only runner, started hourly by launchd on the owner's Mac. It takes Jira tickets from the "Ready for Claude" column and runs `claude -p` twice in a fresh git worktree: once to implement the ticket and once, in a session that hasn't seen that work, to self-review it. The runner then pushes the branch, opens a GitHub PR and moves the card to "In Review". README.md covers the user-facing flow and setup.
+A bash-only runner, started hourly by launchd on the owner's Mac. It takes Jira tickets labelled `ai-ready` from the "Ready for Claude" column and runs `claude -p` twice in a fresh git worktree: once to implement the ticket and once, in a session that hasn't seen that work, to self-review it. The runner then pushes the branch, opens a GitHub PR and moves the card to "In Review". README.md covers the user-facing flow and setup.
 
 ## Commands
 

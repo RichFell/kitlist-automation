@@ -12,10 +12,11 @@ WORKING_STATUS="In Progress"
 REVIEW_STATUS="In Review"
 FALLBACK_STATUS="To Do"
 BLOCKED_LABEL="claude-blocked"
+READY_LABEL="ai-ready"         # cards need this label to be picked up; empty = no gate. --ticket ignores it.
 
 # Limits per run. launchd starts a run every hour while the Mac is awake.
 MAX_TICKETS_PER_RUN=1
-MAX_TURNS_IMPLEMENT=200
+MAX_TURNS_IMPLEMENT=80          # a ticket that needs more is usually too big; split it
 MAX_TURNS_REVIEW=80
 CLAUDE_MODEL_IMPLEMENT=""      # empty = Claude Code's default model
 CLAUDE_MODEL_REVIEW="sonnet"   # the review reads an existing diff, so a cheaper model is enough
