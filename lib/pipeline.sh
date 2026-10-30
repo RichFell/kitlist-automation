@@ -19,7 +19,7 @@ COMMON_DENY=(
   "Read(~/.ssh/**)" "Read(~/.aws/**)" "Read(~/.gnupg/**)" "Read(~/.config/**)" "Read(~/.netrc)"
   "Read(~/.zsh_history)" "Read(~/.bash_history)"
   "Read(~/.kitlist-automation/settings/**)" "Read(~/.kitlist-automation/logs/**)"
-  # The runner pulls the ticket into ticket/; Claude never talks to Jira itself.
+  # The runner pulls the ticket into .tickets/current/; Claude never talks to Jira itself.
   "mcp__claude_ai_Atlassian" "mcp__atlassian" "mcp__Atlassian" "mcp__plugin_data_atlassian"
 )
 
@@ -76,7 +76,7 @@ copy_backend_schema() {
 # the profile, where a human reviews them.
 write_settings() {
   local allow deny protect=() p
-  for p in "$SETTINGS_FILE" "$WT/.claude/**" "$WT/ticket/**" "$RUN_DIR/.claude/**" "$HERE/**" "$HOME/.claude/**"; do
+  for p in "$SETTINGS_FILE" "$WT/.claude/**" "$WT/.tickets/**" "$RUN_DIR/.claude/**" "$HERE/**" "$HOME/.claude/**"; do
     protect+=("Edit(/$p)" "Write(/$p)")
   done
   allow="$(json_array "${COMMON_ALLOW[@]}" ${PROFILE_ALLOW[@]+"${PROFILE_ALLOW[@]}"})"
@@ -106,7 +106,7 @@ run_claude() {
   # skills always, and the MCP servers unless the profile allows the Figma connector
   # and the ticket brief actually links a Figma design.
   args+=(--disable-slash-commands)
-  if [ "${USE_FIGMA:-0}" = 1 ] && grep -rq 'figma\.com/' "$WT/ticket" 2>/dev/null; then
+  if [ "${USE_FIGMA:-0}" = 1 ] && grep -rq 'figma\.com/' "$WT/.tickets/current" 2>/dev/null; then
     log "$KEY: $phase keeps MCP servers for the Figma link"
   else
     args+=(--strict-mcp-config)
@@ -197,22 +197,32 @@ publish_screenshots() {
     done; } >> "$BODY"
 }
 
-# pull_ticket ISSUE_JSON: refresh ticket/ in the worktree with jira-to-md.sh, one
-# Markdown file for the ticket and one each for its parent and linked tickets.
-# It's the spec for both phases and is committed first, so each repo keeps a
-# living copy of the work it was asked to do. No build target includes ticket/.
+# pull_ticket ISSUE_JSON: pull the ticket and its parent and linked tickets into
+# .tickets/current/ with jira-to-md.sh, one Markdown file per key. Earlier tickets
+# (and the old ticket/ layout) move to .tickets/past/ first, and a ticket pulled
+# again leaves past/, so each key lives in one place. current/ is the spec for
+# both phases and is committed first, so each repo keeps a living copy of the
+# work it was asked to do. No build target includes .tickets/.
 pull_ticket() {
-  local key
-  mkdir -p "$WT/ticket" || return 1
+  local key f cur="$WT/.tickets/current" past="$WT/.tickets/past"
+  mkdir -p "$cur" "$past" || return 1
+  [ -f "$WT/.tickets/.gitignore" ] || printf '.DS_Store\n' > "$WT/.tickets/.gitignore"
+  for f in "$WT"/ticket/*.md "$cur"/*.md; do
+    [ -f "$f" ] || continue
+    git -C "$WT" mv -f "$f" "$past/" 2>/dev/null || mv -f "$f" "$past/" || return 1
+  done
+  rmdir "$WT/ticket" 2>/dev/null
   for key in $(printf '%s' "$1" | jq -r '.key, (.fields.parent.key // empty),
                  (.fields.issuelinks[]? | (.inwardIssue // .outwardIssue).key)'); do
     valid_key "$key" || continue
-    if ! "$HERE/scripts/jira-to-md.sh" -f -o "$WT/ticket" "$key" >>"$LOG_FILE" 2>&1; then
+    if "$HERE/scripts/jira-to-md.sh" -f -o "$cur" "$key" >>"$LOG_FILE" 2>&1; then
+      rm -f "$past/$key.md"
+    else
       [ "$key" = "$KEY" ] && return 1
       log "$KEY: couldn't pull related ticket $key"
     fi
   done
-  git -C "$WT" add ticket || return 1
+  git -C "$WT" add -A .tickets || return 1
   git -C "$WT" diff --cached --quiet || git -C "$WT" commit --quiet -m "$KEY: Pull ticket from Jira"
 }
 
@@ -267,7 +277,7 @@ process_ticket() {
   git -C "$REPO" worktree add --quiet -B "$BRANCH" "$WT" "origin/$BASE_BRANCH" ||
     { fail_ticket "$KEY" "couldn't create a worktree from origin/$BASE_BRANCH."; return 1; }
   pull_ticket "$issue" ||
-    { fail_ticket "$KEY" "couldn't save the ticket to ticket/$KEY.md with jira-to-md.sh (see the runner log)."; return 1; }
+    { fail_ticket "$KEY" "couldn't save the ticket to .tickets/current/$KEY.md with jira-to-md.sh (see the runner log)."; return 1; }
   ticket_head="$(git -C "$WT" rev-parse HEAD)"
   prepare_worktree
   copy_backend_schema

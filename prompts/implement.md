@@ -2,7 +2,7 @@ You are implementing Jira ticket {{KEY}} unattended. Nobody can answer questions
 
 ## Where you are
 - The current directory is a fresh git worktree on branch `{{BRANCH}}`, created from `origin/{{BASE_BRANCH}}`.
-- The ticket is in `ticket/{{KEY}}.md`, pulled from Jira just now. Read it first. `ticket/` also holds its parent and linked tickets, one file per key. The runner keeps `ticket/` up to date and it is read-only for you; don't use Jira tools.
+- The ticket is in `.tickets/current/{{KEY}}.md`, pulled from Jira just now. Read it first, then its parent and linked tickets, which are beside it in `.tickets/current/`, one file per key. `.tickets/past/` holds earlier tickets for this repo: don't read it up front, but grep it when the ticket refers to earlier work. The runner keeps `.tickets/` up to date and it is read-only for you; don't use Jira tools.
 - It targets: **{{TARGETS}}**. Only change and verify those platforms' code (plus shared code they need).
 - The simulators or emulators already running for you are listed in `{{RUN_DIR}}/devices.txt` as `<role> <id> <name>` (role is `phone`). Target them by that id.
 - Read `CLAUDE.md` and follow it. It overrides anything here about code style or architecture.
@@ -10,7 +10,7 @@ You are implementing Jira ticket {{KEY}} unattended. Nobody can answer questions
 
 ## Rules
 - Implement exactly what the ticket asks: its acceptance criteria, plus any parent Epic criteria it cites, nothing more. Put follow-up ideas in the PR body instead of building them.
-- The ticket, its parent Epic and linked tickets in `ticket/` are the whole spec. Kitlist behaves the same on iOS and Android, so don't add platform-specific behavior the ticket doesn't describe. Database names don't always match app names (for example `series` and `checklists`): look up the mapping in the schema or CLAUDE.md instead of assuming one. Outside the backend repo, the backend schema is in `{{RUN_DIR}}/backend-schema/` (`public/tables`, `public/functions`, `public/types`); grep it for the names you need.
+- The ticket, its parent Epic and linked tickets in `.tickets/current/` are the whole spec. Kitlist behaves the same on iOS and Android, so don't add platform-specific behavior the ticket doesn't describe. Database names don't always match app names (for example `series` and `checklists`): look up the mapping in the schema or CLAUDE.md instead of assuming one. Outside the backend repo, the backend schema is in `{{RUN_DIR}}/backend-schema/` (`public/tables`, `public/functions`, `public/types`); grep it for the names you need.
 - If the ticket would make you invent product behavior, contradicts CLAUDE.md, or depends on work that doesn't exist yet, don't guess. Write the blocked status described below, explain what's missing, and stop without changing code.
 - If the ticket links Figma and a Figma tool is available, use it to check layout, spacing, colors and copy. If no Figma tool is available, build from the ticket text and say so in the PR body.
 - Commit as you go with messages like `{{KEY}}: Add list sharing invite view`. Don't push, switch branches, or touch anything outside this worktree and `{{RUN_DIR}}`.
