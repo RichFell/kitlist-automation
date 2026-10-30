@@ -28,12 +28,10 @@ You are implementing Jira ticket {{KEY}} unattended. Nobody can answer questions
 
 ## Before you finish
 1. Build, tests and lint all pass (see Repo specifics). Fix failures; don't skip or delete tests to get green.
-2. Screenshots, if Repo specifics asks for them, are saved in `{{RUN_DIR}}/screenshots/` as kebab-case PNGs numbered in reading order, e.g. `01-lists-empty-state.png`.
-3. Write `{{RUN_DIR}}/pr-body.md` in GitHub markdown with these sections:
+2. Write `{{RUN_DIR}}/pr-body.md` in GitHub markdown with these sections:
    - `## Summary`: two or three sentences on what changed and why.
    - `## Changes`: bullets grouped by area, naming the main files.
    - `## Acceptance criteria`: the ticket's criteria as a checklist, `- [x]` only for those you verified.
    - `## How it was verified`: the commands you ran and their results.
    - `## Notes for the reviewer`: decisions you made, anything not done, follow-ups. Write "None" if empty.
-   Don't add screenshot markdown; the runner adds the images.
-4. Write `{{RUN_DIR}}/status.json` as `{"status": "done"}`, or `{"status": "blocked", "reason": "<one or two sentences>"}` if you stopped.
+3. Write `{{RUN_DIR}}/status.json` as `{"status": "done"}`, or `{"status": "blocked", "reason": "<one or two sentences>"}` if you stopped.

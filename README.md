@@ -1,6 +1,6 @@
 # Kitlist ticket runner
 
-Drag a Jira card into **Ready for Claude**. Within the hour, this Mac picks it up and runs Claude Code to implement it and self-review the work, then opens a GitHub PR with screenshots. The card moves to **In Review**, and you review and merge.
+Drag a Jira card into **Ready for Claude**. Within the hour, this Mac picks it up and runs Claude Code to implement it and self-review the work, then opens a GitHub PR. The card moves to **In Review**, and you review and merge.
 
 It runs on your Mac with your Claude plan, GitHub sign-in and Jira token, so there are no GitHub Actions minutes or paid Jira automation involved.
 
@@ -21,7 +21,7 @@ It runs on your Mac with your Claude plan, GitHub sign-in and Jira token, so the
 
    The `area-` versions of these labels work too. Labels from different repos get the ticket sent back. watchOS and Wear OS aren't supported yet; those labels are ignored.
 3. **Fresh worktree.** The runner keeps its own clones under `~/.kitlist-automation/repos`, so your working copies are never touched. Each ticket gets a fresh worktree named for the ticket type (`bugs/<KEY>` for a Bug, `feature/<KEY>` for a Story, `task/<KEY>` for a Task or anything else), made from `develop` (`stage` for the backend, `main` for kitlist-ios-services). PRs target that same branch, and you merge releases into the default branch yourself.
-4. **Implement.** Claude Code reads the ticket and the repo's `CLAUDE.md`. It implements the ticket, builds, tests, takes screenshots and commits. It isn't allowed to push, change branches, call GitHub or Jira, or touch remote Supabase projects.
+4. **Implement.** Claude Code reads the ticket and the repo's `CLAUDE.md`. It implements the ticket, builds, tests and commits. Screenshots are currently off for iOS and Android. It isn't allowed to push, change branches, call GitHub or Jira, or touch remote Supabase projects.
 5. **Self-review.** A second Claude Code session that hasn't seen the work reviews the diff against the acceptance criteria and CLAUDE.md. It fixes real problems and adds a Self-review section to the PR description.
 6. **Pull request.** The runner, not Claude, pushes the branch. It uploads screenshots to the repo's `pr-assets` branch and opens the PR. Then it moves the card to In Review and comments with the PR link.
 

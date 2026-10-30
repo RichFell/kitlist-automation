@@ -12,7 +12,7 @@ Edit files with the Edit and Write tools, including `{{RUN_DIR}}/pr-body.md` and
 Read files with the Read tool, several in one message, not with `cat`. Keep Bash commands to one plain command or a simple pipe: `$(...)`, `for` loops, `cd`, and shell variables in paths or redirects are denied and waste a turn. Give content-mode greps a narrow `path` and a `head_limit`.
 Put independent reads and checks in one message as parallel tool calls, and trim build and test output with `tail` or `grep`.
 
-Fix real problems yourself and commit them as `{{KEY}}: Review fixes: <what>`. Don't restyle code that is merely different from how you'd write it. After any fix, rerun the verification below and retake affected screenshots.
+Fix real problems yourself and commit them as `{{KEY}}: Review fixes: <what>`. Don't restyle code that is merely different from how you'd write it. After any fix, rerun the verification below.
 
 ## Repo specifics
 {{PROFILE}}
